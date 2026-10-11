@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>BizDocs AI — Smart Documents. Faster Business.</title>
+
+  <!-- Google Fonts: Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+
+  <!-- Stylesheets (order matters: tokens → layout → components → print) -->
+  <link rel="stylesheet" href="css/main.css"/>
+  <link rel="stylesheet" href="css/layout.css"/>
+  <link rel="stylesheet" href="css/components.css"/>
+  <link rel="stylesheet" href="css/print.css"/>
+
+  <!-- Favicon (inline SVG as data URI) -->
+  <link rel="icon" type="image/svg+xml" href="assets/logo.svg"/>
+</head>
+<body>
+
+  <!-- App root: router replaces this content on every navigation -->
+  <div id="app"></div>
+
+  <!-- Toast container: lives outside #app so toasts survive navigation -->
+  <div id="toast-container" aria-live="polite"></div>
+
+  <!-- JavaScript load order:
+       1. storage  — data layer (no dependencies)
+       2. money    — calculations (no dependencies)
+       3. seed     — depends on storage
+       4. toast    — depends on nothing
+       5. sidebar  — depends on storage
+       6. header   — depends on storage
+       7. pages    — each depends on storage, money, sidebar, header
+       8. router   — depends on storage
+       9. app      — ties everything together, must be last
+  -->
+  <script src="js/storage.js"></script>
+  <script src="js/money.js"></script>
+  <script src="js/seed.js"></script>
+  <script src="js/components/toast.js"></script>
+  <script src="js/components/sidebar.js"></script>
+  <script src="js/components/header.js"></script>
+  <script src="js/pages/login.js"></script>
+  <script src="js/pages/dashboard.js"></script>
+  <script src="js/pages/customers.js"></script>
+  <script src="js/pages/quotations.js"></script>
+  <script src="js/pages/invoices.js"></script>
+  <script src="js/pages/documents.js"></script>
+  <script src="js/pages/generator.js"></script>
+  <script src="js/pages/settings.js"></script>
+  <script src="js/router.js"></script>
+  <script src="js/app.js"></script>
+
+</body>
+</html>

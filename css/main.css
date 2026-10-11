@@ -1,0 +1,86 @@
+/* ============================================================
+   BizDocs AI — Design Tokens
+   Primary:   #2563EB  (electric blue)
+   Secondary: #7C3AED  (violet/purple)
+   Background:#F5F7FF
+   Text:      #0B163F  (dark navy)
+   ============================================================ */
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  /* Brand colours */
+  --clr-primary:      #2563EB;
+  --clr-primary-dark: #1D4ED8;
+  --clr-secondary:    #7C3AED;
+  --clr-cyan:         #06B6D4;
+  --clr-success:      #10B981;
+  --clr-warning:      #F59E0B;
+  --clr-danger:       #EF4444;
+  --clr-bg:           #F5F7FF;
+  --clr-surface:      #FFFFFF;
+  --clr-text:         #0B163F;
+  --clr-text-muted:   #64748B;
+  --clr-border:       #E2E8F0;
+  --clr-sidebar-bg:   #0B163F;
+  --clr-sidebar-text: #CBD5E1;
+  --clr-sidebar-active: #2563EB;
+
+  /* Gradients */
+  --grad-primary: linear-gradient(135deg, #2563EB 0%, #7C3AED 100%);
+  --grad-card:    linear-gradient(135deg, #EFF6FF 0%, #F5F3FF 100%);
+
+  /* Radius */
+  --r-sm:   8px;
+  --r-md:   12px;
+  --r-lg:   16px;
+  --r-xl:   20px;
+  --r-full: 9999px;
+
+  /* Shadows */
+  --shadow-sm: 0 1px 3px rgba(0,0,0,.08), 0 1px 2px rgba(0,0,0,.04);
+  --shadow-md: 0 4px 6px rgba(0,0,0,.07), 0 2px 4px rgba(0,0,0,.04);
+  --shadow-lg: 0 10px 15px rgba(0,0,0,.08), 0 4px 6px rgba(0,0,0,.04);
+  --shadow-card: 0 2px 8px rgba(37,99,235,.08);
+
+  /* Typography */
+  --font:       'Inter', 'Segoe UI', system-ui, sans-serif;
+  --font-mono:  'Fira Code', 'Consolas', monospace;
+
+  /* Spacing scale (multiples of 4px) */
+  --sp-1:  4px;  --sp-2:  8px;  --sp-3: 12px;  --sp-4: 16px;
+  --sp-5: 20px;  --sp-6: 24px;  --sp-8: 32px;  --sp-10: 40px;
+  --sp-12: 48px; --sp-16: 64px;
+
+  /* Sidebar */
+  --sidebar-w: 240px;
+  --header-h:  64px;
+
+  /* Transitions */
+  --transition: 150ms ease;
+}
+
+html, body {
+  height: 100%;
+  font-family: var(--font);
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--clr-text);
+  background: var(--clr-bg);
+  -webkit-font-smoothing: antialiased;
+}
+
+a { color: inherit; text-decoration: none; }
+img, svg { display: block; }
+button { cursor: pointer; font-family: inherit; }
+input, select, textarea { font-family: inherit; }
+ul, ol { list-style: none; }
+
+/* Utility: visually hidden but accessible */
+.sr-only {
+  position: absolute; width: 1px; height: 1px;
+  padding: 0; margin: -1px; overflow: hidden;
+  clip: rect(0,0,0,0); border: 0;
+}
+
+/* Inter from Google Fonts (loaded in index.html) */

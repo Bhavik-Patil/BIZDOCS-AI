@@ -1,0 +1,33 @@
+/* ============================================================
+   BizDocs AI — Print styles
+   Only active when printing / saving as PDF
+   ============================================================ */
+
+@media print {
+  /* Hide everything except the document preview */
+  body > * { display: none !important; }
+  .print-area { display: block !important; }
+
+  .print-area {
+    position: fixed;
+    inset: 0;
+    background: white;
+  }
+
+  @page {
+    size: A4 portrait;
+    margin: 14mm 16mm;
+  }
+
+  /* Remove interactive chrome */
+  .sidebar, .header, .toolbar, .btn, .td-actions,
+  #toast-container, .modal-overlay { display: none !important; }
+
+  /* Prevent page breaks inside a line-item row */
+  .doc-items tr { page-break-inside: avoid; }
+
+  /* Ensure colours print */
+  * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+
+  a[href]::after { content: none; }
+}
