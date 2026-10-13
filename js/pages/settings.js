@@ -4,9 +4,11 @@
    ============================================================ */
 
 var PageSettings = (function () {
+  var _logo=null;
 
   function render() {
     var settings = BizStorage.getSettings();
+    _logo=BizBrand.validLogo(settings.logo_data_url)?settings.logo_data_url:null;
 
     document.getElementById('app').innerHTML =
       BizSidebar.render() +
@@ -52,6 +54,7 @@ var PageSettings = (function () {
         '</div>' +
       '</div>' +
 
+      '<div class="card logo-upload-card" style="margin-bottom:var(--sp-5)"><div class="card-title">Company logo</div><div class="brand-upload"><div id="s-logo-preview">'+(BizBrand.validLogo(s.logo_data_url)?'<img src="'+s.logo_data_url+'" alt="Business logo"/>':'<span>Your logo</span>')+'</div><div><label class="form-label" for="s-logo">Upload logo</label><input id="s-logo" type="file" accept="image/png,image/jpeg,image/webp"/><p class="form-hint">PNG, JPG or WebP · up to 5 MB. Save Settings to apply it to every document.</p><button class="btn btn-secondary btn-sm" type="button" id="s-logo-remove">Remove logo</button></div></div></div>' +
       /* Document Defaults */
       '<div class="card" style="margin-bottom:var(--sp-5)">' +
         '<div class="card-header">' +
@@ -165,6 +168,8 @@ var PageSettings = (function () {
      EVENTS
      ============================================================ */
   function _bindEvents() {
+    document.getElementById('s-logo').onchange=async function(){var save=document.getElementById('s-save');save.disabled=true;try{var image=await BizBrand.readImage(this.files[0],true);_logo=image.dataUrl;document.getElementById('s-logo-preview').innerHTML='<img src="'+_logo+'" alt="Business logo"/>';BizToast.show('Logo ready. Save Settings to apply.','success');}catch(error){BizToast.show(error.message,'warning');}finally{save.disabled=false;this.value='';}};
+    document.getElementById('s-logo-remove').onclick=function(){_logo=null;document.getElementById('s-logo-preview').textContent='Your logo';};
     /* Save */
     document.getElementById('s-save').addEventListener('click', _save);
 
@@ -244,7 +249,7 @@ var PageSettings = (function () {
       currency_symbol:       sym,
       default_gst_bp:        gstBp,
       default_validity_days: validity,
-      logo_data_url:         BizStorage.getSettings().logo_data_url || null,
+      logo_data_url:         _logo,
     });
 
     if (!saved) { BizToast.show('Could not save settings. Browser storage may be full.', 'error'); return; }

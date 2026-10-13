@@ -424,10 +424,7 @@ var PageQuotations = (function () {
       '<div style="display:flex;justify-content:space-between;align-items:flex-start;' +
            'margin-bottom:28px;padding-bottom:20px;border-bottom:3px solid #2563EB">' +
         '<div>' +
-          '<div style="font-size:22px;font-weight:800;background:linear-gradient(135deg,#2563EB,#7C3AED);' +
-               '-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;' +
-               'margin-bottom:4px">BizDocs AI</div>' +
-          '<div style="font-size:11px;color:#64748B;font-weight:500">' + _esc(s.business_name || '') + '</div>' +
+          BizBrand.header(s) +
           (s.address ? '<div style="font-size:10.5px;color:#94A3B8;margin-top:2px">' + _esc(s.address) + '</div>' : '') +
           (s.gst_number ? '<div style="font-size:10.5px;color:#94A3B8">GST: ' + _esc(s.gst_number) + '</div>' : '') +
         '</div>' +

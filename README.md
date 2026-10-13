@@ -32,7 +32,7 @@ Open http://localhost:3000. No `npm install` is needed. The server listens only 
 - Invoice payment states: Paid, Pending, and Overdue; past-due unpaid invoices are also shown as overdue automatically.
 - Documents archive with reference/customer/type search, type tabs, date filters, and confirmation dialogs before deletion.
 - Customer contact management and document history. Customers referenced by saved documents cannot be deleted, protecting document history. A quotation linked to an invoice is also retained until its invoice is removed.
-- Business profile, logo placeholder, currency, default GST, and default quotation validity.
+- Business profile, company logo upload, currency, default GST, and default quotation validity.
 - Header document search, outstanding invoice notifications, profile menu, mobile navigation, validation messages, and empty states.
 - JSON backup export from Documents or Settings.
 
@@ -54,7 +54,7 @@ Open http://localhost:3000. No `npm install` is needed. The server listens only 
 npm test
 ```
 
-Tests cover financial calculations, rounding, invalid inputs, save/reopen, quota failure, reference numbering, conversion without duplicate invoices, customer history protection, document editing, demo seeding, and static-server request handling. The test runner uses only Node's built-in modules. Final verification: **63 automated tests passed**, JavaScript syntax checks passed, and all local HTML asset references exist. Browser QA verified customer creation, multi-item quotation save/reopen, direct quotation and invoice PDF downloads, repeat-conversion prevention, letter editing, search, notifications, 0% GST defaults, and laptop/mobile layouts. Direct `file://` navigation could not be tested because the browser automation tool allows only HTTP/HTTPS; the walkthrough was verified with the localhost server.
+Tests cover financial calculations, rounding, invalid inputs, save/reopen, quota failure, reference numbering, conversion without duplicate invoices, customer history protection, document editing, demo seeding, and static-server request handling. The test runner uses only Node's built-in modules. Final verification: **69 automated tests passed**, JavaScript syntax checks passed, and all local HTML asset references exist. Browser QA verified customer creation, multi-item quotation save/reopen, direct quotation and invoice PDF downloads, repeat-conversion prevention, letter editing, search, notifications, 0% GST defaults, and laptop/mobile layouts. Direct `file://` navigation could not be tested because the browser automation tool allows only HTTP/HTTPS; the walkthrough was verified with the localhost server.
 
 ## College presentation walkthrough
 
@@ -71,12 +71,18 @@ Tests cover financial calculations, rounding, invalid inputs, save/reopen, quota
 - Data belongs to the current browser profile and origin. Opening with `file://` and using localhost have separate storage. Keep the same launch method for the presentation. Export backups before clearing browser data.
 - LocalStorage is suitable for a single-tab demo, not concurrent multi-user editing. No cross-device sync or backup import is provided.
 - PDF downloads contain rasterized document pages; use browser **Print → Save as PDF** if you need selectable text. Very long freeform content may span pages. External images are not supported by the offline exporter.
-- The logo is a placeholder; custom logo upload remains a future extension. Gemini requires internet and an available API quota.
+- Company logo uploads work locally. Gemini requires a valid API key, internet access and available quota.
 - Design follows the supplied blue-purple visual brief. The actual startup PPT was not included for exact comparison.
 
 No external deployment is required. Copy the whole project folder, including `js/vendor`, to demonstrate it on another PC.
 # Gemini Smart Generator
 
+**Business logo and references:** Settings → Upload logo accepts PNG, JPG or WebP up to 5 MB. Save Settings to persist it; Remove logo + Save Settings clears it. Saved branding appears in quotation, invoice, letter and custom document previews, prints and PDFs. Business name, email, phone, address, GST and document defaults come from Settings.
+
+Create Document → Upload reference images accepts up to two images (5 MB each) for invoice, quotation or custom-document references. Images are resized, previewed and removable; Clear removes them. Select Gemini AI to analyze them. Your prompt, temporary reference images and saved business details are sent to Google; your logo is applied locally and not sent. Reference branding never replaces the saved issuer profile. The result uses the app's A4 layout with generated content and a short reference analysis, not an exact layout copy. Offline templates do not analyze images. Reference uploads are not saved with documents. Data uses localStorage; there is no SQL database or installation requirement.
+
+The configured model is `gemini-2.5-flash-lite`, which Google lists as eligible for free-tier standard input/output. A model name does not select billing tier: keep the API project on Google's Free tier to avoid paid usage. Free quotas and model access are controlled by Google; this application does not enable billing or silently upgrade to another provider. Pricing: https://ai.google.dev/gemini-api/docs/pricing#gemini-2.5-flash-lite
+
 Run `npm start`, open `http://localhost:3000`, and choose **Gemini AI (online)** in Create Document. Enter instructions and click Generate. Review the extracted fields and generated content before saving. Offline templates remain available without internet or API access.
 
-The local server automatically reads `GEMINI_API_KEY` and `GEMINI_MODEL` from `.env`. Environment variables take precedence. Copy `.env.example` to `.env` on another PC and supply your own key. `.env` is ignored by Git and must never be distributed. The legacy `.gemini.local.json` remains a fallback. The supplied key is configured only on this PC. `GEMINI_MODEL` optionally selects the model; the default is `gemini-flash-latest`. Node 18 or newer is required. Gemini sends your prompt to Google and is subject to your API account quota and billing settings. The server validates returned fields; existing money calculations remain authoritative.
+The local server automatically reads `GEMINI_API_KEY` and `GEMINI_MODEL` from `.env`. Environment variables take precedence. Copy `.env.example` to `.env` on another PC and supply your own key. `.env` is ignored by Git and must never be distributed. The legacy `.gemini.local.json` remains a fallback. The supplied key is configured only on this PC. `GEMINI_MODEL` optionally selects the model; the default is `gemini-2.5-flash-lite`. Node 18 or newer is required. Gemini sends your prompt to Google and is subject to your API account quota and billing settings. The server validates returned fields; existing money calculations remain authoritative.

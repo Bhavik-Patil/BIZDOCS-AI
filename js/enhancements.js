@@ -50,7 +50,6 @@ var BizUI = (function () {
       page.insertAdjacentHTML('afterbegin','<section class="dashboard-hero"><div><span class="eyebrow">YOUR BUSINESS WORKSPACE</span><h1>Smart Documents.<br>Faster Business.</h1><p>From the first quotation to the final invoice.<br>Keep every business conversation professional.</p><a class="btn hero-button" href="#/generator">Create a document <span>↗</span></a></div><div class="hero-art" aria-hidden="true"><div class="mini-sheet"><div class="mini-brand">✦ BizDocs AI</div><div class="mini-label">QUOTATION</div><div class="mini-rule"></div><div class="mini-rule short"></div><div class="mini-table"><span>Website development</span><b>₹40,000</b><span>GST · 18%</span><b>₹7,200</b></div><div class="mini-total">Grand total <b>₹47,200</b></div><div class="mini-sign">Ready for your next opportunity</div></div><div class="floating-note">✓ Professional. In seconds.</div></div></section>');
       page.insertAdjacentHTML('beforeend',activity());
     }
-    var settings=document.getElementById('s-bname');if(settings){var card=settings.closest('.card');card.insertAdjacentHTML('afterbegin','<div class="logo-placeholder"><img src="assets/logo.svg" alt="BizDocs AI logo"/><div><strong>Your business identity</strong><p>Business details appear on every document.</p></div></div>');}
   }
   new MutationObserver(enhance).observe(document.getElementById('app'),{childList:true});
   document.addEventListener('click',function(e){if(!e.target.closest('.header__search')){var p=document.getElementById('header-results');if(p)p.remove();}});

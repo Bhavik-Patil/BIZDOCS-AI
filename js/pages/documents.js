@@ -450,8 +450,7 @@ var PageDocuments = (function () {
     return '<div style="background:white;padding:32px 36px;font-family:Segoe UI,Arial,sans-serif;font-size:12px;color:#0B163F;min-height:250mm;box-sizing:border-box">' +
       '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:28px;padding-bottom:20px;border-bottom:3px solid #2563EB">' +
         '<div>' +
-          '<div style="font-size:22px;font-weight:800;background:linear-gradient(135deg,#2563EB,#7C3AED);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:4px">BizDocs AI</div>' +
-          '<div style="font-size:11px;color:#64748B">' + _esc(settings.business_name || '') + '</div>' +
+          BizBrand.header(settings) +
         '</div>' +
         '<div style="text-align:right">' +
           '<div style="font-size:18px;font-weight:800;color:#2563EB">' + _cap(doc.type) + '</div>' +

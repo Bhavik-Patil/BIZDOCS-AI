@@ -63,6 +63,7 @@ var BizStorage = (function () {
   }
 
   function saveSettings(data) {
+    if(data && data.logo_data_url && (typeof data.logo_data_url!=='string' || data.logo_data_url.length>750000 || !/^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/]+=*$/.test(data.logo_data_url)))return false;
     if (!data || !String(data.business_name || '').trim()) return false;
     if (data.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email)) return false;
     if (!Number.isInteger(data.default_validity_days) || data.default_validity_days < 1 || data.default_validity_days > 365) return false;

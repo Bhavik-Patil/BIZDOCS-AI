@@ -28,12 +28,13 @@ const server = http.createServer((req, res) => {
   if (req.url === '/api/generate' && req.method === 'POST') {
     const origin = req.headers.origin;
     if (origin && origin !== `http://localhost:${PORT}` && origin !== `http://127.0.0.1:${PORT}`) { res.writeHead(403); res.end('Forbidden'); return; }
-    let body = '';
-    req.on('data', chunk => { body += chunk; if (body.length > 20000) req.destroy(); });
+    let body = '',bytes=0,tooLarge=false;
+    req.on('data', chunk => {bytes+=chunk.length;if(bytes>1600000){if(!tooLarge){tooLarge=true;res.writeHead(413,{'Content-Type':'application/json'});res.end(JSON.stringify({error:'Reference images are too large.'}));}}else{body+=chunk;} });
     req.on('end', async () => {
+      if(tooLarge)return;
       try {
         const input = JSON.parse(body);
-        const result = await require('./gemini').generate(input.prompt, input.docType);
+        const result = await require('./gemini').generate(input.prompt, input.docType, undefined, input.images||[], input.business||{});
         res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' }); res.end(JSON.stringify(result));
       } catch (error) {
         res.writeHead(400, { 'Content-Type': 'application/json' });

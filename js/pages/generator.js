@@ -6,6 +6,7 @@
    ============================================================ */
 
 var PageGenerator = (function () {
+  var _references=[];
 
   /* Current state */
   var _state = {
@@ -19,6 +20,7 @@ var PageGenerator = (function () {
      ENTRY POINT
      ============================================================ */
   function render() {
+    _references=[];
     _state = { docType: 'quotation', fields: {}, items: [], generated: false };
 
     document.getElementById('app').innerHTML =
@@ -82,6 +84,7 @@ var PageGenerator = (function () {
         '<div class="form-hint">Try: "Invoice for Nexus Digital for logo design Rs 15000" or "Business letter to Sharma &amp; Co regarding project update"</div>' +
       '</div>' +
 
+      '<div class="reference-upload"><label class="form-label" for="gen-images">Upload reference images</label><input id="gen-images" type="file" accept="image/png,image/jpeg,image/webp" multiple/><p class="form-hint">Invoice, quotation or custom document reference · up to 2 images, 5 MB each. Gemini receives your prompt, references and saved business details when you Generate. Your logo is applied locally from Settings.</p><div id="gen-reference-list" class="reference-list"></div><div id="gen-analysis" class="form-hint" role="status"></div></div>' +
       '<div style="display:flex;gap:var(--sp-3);flex-wrap:wrap">' +
         '<button class="btn btn-primary" id="btn-generate">' + _iSparkle() + ' Generate</button>' +
         '<button class="btn btn-secondary" id="btn-clear-prompt">Clear</button>' +
@@ -103,6 +106,7 @@ var PageGenerator = (function () {
   function _exampleChip(text) {
     return '<button class="example-chip" data-prompt="' + _esc(text) + '">' + _esc(text) + '</button>';
   }
+  function _renderReferences(){var list=document.getElementById('gen-reference-list');list.innerHTML='';_references.forEach(function(image,index){var card=document.createElement('div');card.className='reference-card';var img=document.createElement('img');img.src=image.dataUrl;img.alt='Reference '+(index+1);var name=document.createElement('span');name.textContent=image.name;var remove=document.createElement('button');remove.textContent='Remove';remove.className='btn btn-secondary btn-sm';remove.onclick=function(){_references.splice(index,1);_renderReferences();};card.append(img,name,remove);list.appendChild(card);});}
 
   /* ---- Document type selector ---- */
   function _typeSelector() {
@@ -432,8 +436,7 @@ var PageGenerator = (function () {
 
       '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:28px;padding-bottom:20px;border-bottom:3px solid #2563EB">' +
         '<div>' +
-          '<div style="font-size:22px;font-weight:800;background:linear-gradient(135deg,#2563EB,#7C3AED);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:4px">BizDocs AI</div>' +
-          '<div style="font-size:11px;color:#64748B;font-weight:500">' + _esc(s.business_name||'') + '</div>' +
+          BizBrand.header(s) +
           (s.address ? '<div style="font-size:10.5px;color:#94A3B8;margin-top:2px">' + _esc(s.address) + '</div>' : '') +
           (s.gst_number ? '<div style="font-size:10.5px;color:#94A3B8">GST: ' + _esc(s.gst_number) + '</div>' : '') +
         '</div>' +
@@ -507,8 +510,7 @@ var PageGenerator = (function () {
 
       '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:28px;padding-bottom:20px;border-bottom:3px solid #2563EB">' +
         '<div>' +
-          '<div style="font-size:22px;font-weight:800;background:linear-gradient(135deg,#2563EB,#7C3AED);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:4px">BizDocs AI</div>' +
-          '<div style="font-size:11px;color:#64748B">' + _esc(s.business_name||'') + '</div>' +
+          BizBrand.header(s) +
           (s.address ? '<div style="font-size:10.5px;color:#94A3B8">' + _esc(s.address) + '</div>' : '') +
         '</div>' +
         '<div style="text-align:right">' +
@@ -668,6 +670,7 @@ var PageGenerator = (function () {
       });
     });
 
+    document.getElementById('gen-images').onchange=async function(){var button=document.getElementById('btn-generate');button.disabled=true;try{var files=Array.from(this.files);if(_references.length+files.length>2)throw new Error('Attach up to 2 reference images. Remove an image first.');var images=await Promise.all(files.map(function(file){return BizBrand.readImage(file,false);}));_references=_references.concat(images);_renderReferences();}catch(error){BizToast.show(error.message,'warning');}finally{button.disabled=false;this.value='';}};
     /* Generate button */
     document.getElementById('btn-generate').addEventListener('click', async function () {
       var prompt = (document.getElementById('gen-prompt').value || '').trim();
@@ -676,12 +679,14 @@ var PageGenerator = (function () {
         return;
       }
       var parsed      = _parsePrompt(prompt);
+      if(_references.length && document.getElementById('gen-provider').value!=='gemini'){BizToast.show('Choose Gemini AI to analyze images, or remove references for Offline templates.','warning');return;}
       if (document.getElementById('gen-provider').value === 'gemini') {
         if (location.protocol === 'file:') { BizToast.show('Run npm start and open localhost:3000 to use Gemini.', 'warning'); return; }
         var generateButton = this;
         generateButton.disabled = true;
         try {
-          var response = await fetch('/api/generate', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({prompt:prompt,docType:_state.docType}), signal:AbortSignal.timeout(50000) });
+          var response = await fetch('/api/generate', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({prompt:prompt,docType:_state.docType,images:_references.map(function(image){return {mimeType:image.mimeType,data:image.data};}),business:BizBrand.context(BizStorage.getSettings())}), signal:AbortSignal.timeout(50000) });
+          if(!(response.headers.get('content-type')||'').includes('application/json'))throw new Error('Run npm start and open localhost:3000. A static preview cannot run Gemini.');
           var output = await response.json();
           if (!response.ok) throw new Error(output.error || 'Gemini generation failed.');
           parsed = output;
@@ -698,6 +703,7 @@ var PageGenerator = (function () {
 
       /* Show fields panel */
       document.getElementById('gen-fields-panel').innerHTML = _buildFieldsPanel(parsed);
+      document.getElementById('gen-analysis').textContent=parsed.analysis||'';
       if (parsed.body && document.getElementById('gf-body')) document.getElementById('gf-body').value = parsed.body;
 
       /* Show preview */
@@ -718,6 +724,7 @@ var PageGenerator = (function () {
     /* Clear */
     document.getElementById('btn-clear-prompt').addEventListener('click', function () {
       document.getElementById('gen-prompt').value = '';
+      _references=[];_renderReferences();document.getElementById('gen-analysis').textContent='';
       document.getElementById('gen-fields-panel').innerHTML = '';
       document.getElementById('gen-preview').innerHTML = _emptyPreview();
       _state.generated = false;
