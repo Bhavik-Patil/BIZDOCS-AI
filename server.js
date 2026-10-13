@@ -25,6 +25,23 @@ const MIME_TYPES = {
 };
 
 const server = http.createServer((req, res) => {
+  if (req.url === '/api/generate' && req.method === 'POST') {
+    const origin = req.headers.origin;
+    if (origin && origin !== `http://localhost:${PORT}` && origin !== `http://127.0.0.1:${PORT}`) { res.writeHead(403); res.end('Forbidden'); return; }
+    let body = '';
+    req.on('data', chunk => { body += chunk; if (body.length > 20000) req.destroy(); });
+    req.on('end', async () => {
+      try {
+        const input = JSON.parse(body);
+        const result = await require('./gemini').generate(input.prompt, input.docType);
+        res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' }); res.end(JSON.stringify(result));
+      } catch (error) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: error.message.startsWith('Gemini') || error.message.startsWith('Enter') ? error.message : 'Generation failed. Check the server configuration or try Offline templates.' }));
+      }
+    });
+    return;
+  }
   // Only handle GET and HEAD requests
   if (req.method !== 'GET' && req.method !== 'HEAD') {
     res.writeHead(405, { 'Content-Type': 'text/plain; charset=utf-8' });

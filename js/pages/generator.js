@@ -71,7 +71,8 @@ var PageGenerator = (function () {
           '<div class="card-title">' + _iSparkle() + ' Smart Generator</div>' +
           '<div class="card-subtitle">Template-based — type a description and we fill the fields</div>' +
         '</div>' +
-        '<span class="badge badge-draft" style="font-size:11px">Offline Mode</span>' +
+        '<select id="gen-provider" class="form-control" style="width:auto"><option value="offline">Offline templates</option><option value="gemini">Gemini AI (online)</option></select>' +
+        '<span class="form-hint">Gemini sends your prompt to Google. Review generated details before saving.</span>' +
       '</div>' +
 
       '<div class="form-group">' +
@@ -668,13 +669,25 @@ var PageGenerator = (function () {
     });
 
     /* Generate button */
-    document.getElementById('btn-generate').addEventListener('click', function () {
+    document.getElementById('btn-generate').addEventListener('click', async function () {
       var prompt = (document.getElementById('gen-prompt').value || '').trim();
       if (!prompt) {
         BizToast.show('Please enter a description first.', 'warning');
         return;
       }
       var parsed      = _parsePrompt(prompt);
+      if (document.getElementById('gen-provider').value === 'gemini') {
+        if (location.protocol === 'file:') { BizToast.show('Run npm start and open localhost:3000 to use Gemini.', 'warning'); return; }
+        var generateButton = this;
+        generateButton.disabled = true;
+        try {
+          var response = await fetch('/api/generate', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({prompt:prompt,docType:_state.docType}), signal:AbortSignal.timeout(50000) });
+          var output = await response.json();
+          if (!response.ok) throw new Error(output.error || 'Gemini generation failed.');
+          parsed = output;
+        } catch (error) { BizToast.show(error.message || 'Gemini unavailable. Choose Offline templates to continue.', 'error'); return; }
+        finally { generateButton.disabled = false; }
+      }
       _state.docType  = parsed.docType;
       _state.generated= true;
 
@@ -685,6 +698,7 @@ var PageGenerator = (function () {
 
       /* Show fields panel */
       document.getElementById('gen-fields-panel').innerHTML = _buildFieldsPanel(parsed);
+      if (parsed.body && document.getElementById('gf-body')) document.getElementById('gf-body').value = parsed.body;
 
       /* Show preview */
       _refreshPreviewFromFields();

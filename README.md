@@ -42,7 +42,7 @@ Open http://localhost:3000. No `npm install` is needed. The server listens only 
 
 `js/money.js` stores money in integer minor units (paise for INR), quantities in thousandths, and tax rates in basis points. Gross amounts, discounts, and taxes round half-up per line before summing totals. Numeric limits keep intermediate multiplication within JavaScript's safe integer range.
 
-`js/pages/generator.js` parses a prompt into a document type, customer, description, amount, and tax, then fills editable templates. Its exported `parsePrompt` method defines the parsed-field contract for a future provider adapter. This is **template-based generation, not a real AI API**. The core app requires no API key or paid service.
+`js/pages/generator.js` offers offline prompt parsing and an optional Gemini provider through `gemini.js` on the local server. Both fill editable fields; offline generation uses templates, while Gemini calls Google's API. The core app requires no API key or paid service.
 
 `js/pdf.js` renders a dedicated copy of the preview and builds A4 pages. Two MIT-licensed libraries are bundled in `js/vendor` for this feature: [html2canvas](https://html2canvas.hertzen.com/documentation) 1.4.1 and [jsPDF](https://github.com/parallax/jsPDF) 4.2.1. They are loaded locally; the app does not contact a CDN. Downloads preserve visible document styling and use page boundaries near table rows where possible.
 
@@ -71,7 +71,12 @@ Tests cover financial calculations, rounding, invalid inputs, save/reopen, quota
 - Data belongs to the current browser profile and origin. Opening with `file://` and using localhost have separate storage. Keep the same launch method for the presentation. Export backups before clearing browser data.
 - LocalStorage is suitable for a single-tab demo, not concurrent multi-user editing. No cross-device sync or backup import is provided.
 - PDF downloads contain rasterized document pages; use browser **Print → Save as PDF** if you need selectable text. Very long freeform content may span pages. External images are not supported by the offline exporter.
-- The logo is a placeholder; custom logo upload and live AI integration are future extensions.
+- The logo is a placeholder; custom logo upload remains a future extension. Gemini requires internet and an available API quota.
 - Design follows the supplied blue-purple visual brief. The actual startup PPT was not included for exact comparison.
 
 No external deployment is required. Copy the whole project folder, including `js/vendor`, to demonstrate it on another PC.
+# Gemini Smart Generator
+
+Run `npm start`, open `http://localhost:3000`, and choose **Gemini AI (online)** in Create Document. Enter instructions and click Generate. Review the extracted fields and generated content before saving. Offline templates remain available without internet or API access.
+
+The local server automatically reads `GEMINI_API_KEY` and `GEMINI_MODEL` from `.env`. Environment variables take precedence. Copy `.env.example` to `.env` on another PC and supply your own key. `.env` is ignored by Git and must never be distributed. The legacy `.gemini.local.json` remains a fallback. The supplied key is configured only on this PC. `GEMINI_MODEL` optionally selects the model; the default is `gemini-flash-latest`. Node 18 or newer is required. Gemini sends your prompt to Google and is subject to your API account quota and billing settings. The server validates returned fields; existing money calculations remain authoritative.
