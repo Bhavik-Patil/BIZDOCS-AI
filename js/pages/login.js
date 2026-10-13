@@ -95,15 +95,6 @@ var PageLogin = (function () {
             '<div class="form-error" id="err-password"></div>' +
           '</div>' +
 
-          /* Remember me + Forgot password */
-          '<div class="auth-split__form-row">' +
-            '<label class="auth-split__remember">' +
-              '<input type="checkbox" id="remember-me" checked/>' +
-              '<span>Remember me</span>' +
-            '</label>' +
-            '<span class="auth-split__forgot">Forgot password?</span>' +
-          '</div>' +
-
           '<div class="form-error" id="err-general" style="margin-bottom:10px"></div>' +
 
           /* Submit */

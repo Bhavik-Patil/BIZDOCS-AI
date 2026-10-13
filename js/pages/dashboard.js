@@ -17,8 +17,8 @@ var PageDashboard = (function () {
       '<div class="main">' +
         BizHeader.render('Dashboard', 'Welcome back, ' + ((BizStorage.getSession() || {}).name || 'Demo User')) +
         '<main class="page" id="page-root">' +
-          _quickActions() +
           _statCards(stats, sym) +
+          _quickActions() +
           _bottomRow(recent, stats, sym) +
         '</main>' +
       '</div>';
@@ -33,7 +33,7 @@ var PageDashboard = (function () {
       { label: 'New Quotation',  sub: 'Create & send',       path: '/quotations/new', icon: _iReceipt(),  colour: 'blue'   },
       { label: 'New Invoice',    sub: 'Bill a customer',      path: '/invoices/new',   icon: _iInvoice(),  colour: 'purple' },
       { label: 'Add Customer',   sub: 'Save contact',         path: '/customers/new',  icon: _iUsers(),    colour: 'green'  },
-      { label: 'AI Generator',   sub: 'Draft from prompt',    path: '/generator',      icon: _iSparkle(),  colour: 'amber'  },
+      { label: 'Create Document',   sub: 'Draft from prompt',    path: '/generator',      icon: _iSparkle(),  colour: 'amber'  },
     ];
 
     return '<div class="grid-4" style="margin-bottom:var(--sp-6)">' +

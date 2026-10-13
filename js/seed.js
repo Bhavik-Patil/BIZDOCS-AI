@@ -91,8 +91,8 @@ var BizSeed = (function () {
     BizStorage.saveDocument({
       type: 'quotation',
       customer_id: abc.id,
-      issue_date:  '2026-10-01',
-      valid_until: '2026-10-31',
+      issue_date:  _relativeDay(-3),
+      valid_until: _relativeDay(27),
       notes: 'Please confirm within the validity period.',
       terms: 'Payment due within 15 days of invoice. 50% advance required.',
       items: [
@@ -115,8 +115,8 @@ var BizSeed = (function () {
     BizStorage.saveDocument({
       type: 'quotation',
       customer_id: nexus.id,
-      issue_date:  '2026-09-25',
-      valid_until: '2026-10-25',
+      issue_date:  _relativeDay(-8),
+      valid_until: _relativeDay(22),
       notes: '',
       terms: 'Payment on delivery.',
       items: [
@@ -139,16 +139,16 @@ var BizSeed = (function () {
       ],
       subtotal_p: 2300000,
       discount_p: 150000,
-      tax_p:      386100,
-      total_p:    2536100,
+      tax_p:      387000,
+      total_p:    2537000,
     });
 
     // ---- Invoice 1 (PAID) ----
     BizStorage.saveDocument({
       type: 'invoice',
       customer_id: sharma.id,
-      issue_date:  '2026-09-10',
-      due_date:    '2026-09-25',
+      issue_date:  _relativeDay(-20),
+      due_date:    _relativeDay(-8),
       payment_status: 'paid',
       notes: 'Thank you for your business.',
       terms: 'Payment received. No further action required.',
@@ -172,8 +172,8 @@ var BizSeed = (function () {
     BizStorage.saveDocument({
       type: 'invoice',
       customer_id: abc.id,
-      issue_date:  '2026-10-01',
-      due_date:    '2026-10-16',
+      issue_date:  _relativeDay(-3),
+      due_date:    _relativeDay(12),
       payment_status: 'pending',
       notes: '',
       terms: 'Payment due within 15 days.',
@@ -197,8 +197,8 @@ var BizSeed = (function () {
     BizStorage.saveDocument({
       type: 'invoice',
       customer_id: patil.id,
-      issue_date:  '2026-09-01',
-      due_date:    '2026-09-15',
+      issue_date:  _relativeDay(-25),
+      due_date:    _relativeDay(-11),
       payment_status: 'pending',          // overdue = pending + past due date
       notes: 'Please clear dues immediately.',
       terms: '',
@@ -222,7 +222,7 @@ var BizSeed = (function () {
     BizStorage.saveDocument({
       type: 'letter',
       customer_id: desai.id,
-      issue_date: '2026-09-20',
+      issue_date: _relativeDay(-5),
       notes: '',
       terms: '',
       items: [],
@@ -234,5 +234,6 @@ var BizSeed = (function () {
     });
   }
 
+  function _relativeDay(offset) { var d=new Date(BizStorage._today()+'T12:00:00'); d.setDate(d.getDate()+offset);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
   return { run: run };
 })();

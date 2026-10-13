@@ -24,7 +24,7 @@ var PageGenerator = (function () {
     document.getElementById('app').innerHTML =
       BizSidebar.render() +
       '<div class="main">' +
-        BizHeader.render('AI Generator', 'Create documents from a simple description') +
+        BizHeader.render('Create Document', 'Create documents from a simple description') +
         '<main class="page" id="page-root">' +
           _pageHtml() +
         '</main>' +
@@ -32,6 +32,8 @@ var PageGenerator = (function () {
 
     _bindAvatar();
     _bindEvents();
+    var editId = window.location.hash.split('/generator/edit/')[1];
+    if (editId) _loadExisting(editId);
   }
 
   /* ============================================================
@@ -143,17 +145,18 @@ var PageGenerator = (function () {
      ============================================================ */
   function _parsePrompt(prompt) {
     var text    = prompt.toLowerCase();
-    var result  = { docType: _state.docType, customer: null, description: '', amount: 0, gstBp: 1800, subject: '' };
+    var result  = { docType: _state.docType, customer: null, description: '', amount: 0, gstBp: BizStorage.getSettings().default_gst_bp ?? 1800, subject: '' };
 
     /* Detect document type */
     if (text.includes('invoice'))                                    result.docType = 'invoice';
     else if (text.includes('quotation') || text.includes('quote'))  result.docType = 'quotation';
     else if (text.includes('letter'))                               result.docType = 'letter';
     else if (text.includes('agreement') || text.includes('contract')) result.docType = 'agreement';
+    else if (text.includes('custom'))                               result.docType = 'custom';
     else if (text.includes('report'))                               result.docType = 'report';
 
     /* Extract customer name — looks for "for <name>" or "to <name>" */
-    var custMatch = prompt.match(/(?:for|to)\s+([A-Z][A-Za-z\s&.]+?)(?:\s+for|\s+regarding|\s+rs\.?|\s+₹|\s+invoice|\s+quotation|,|$)/);
+    var custMatch = prompt.match(/(?:for|to|with)\s+([A-Z][A-Za-z\s&.]+?)(?:\s+for|\s+regarding|\s+rs\.?|\s+₹|\s+invoice|\s+quotation|,|$)/i);
     if (custMatch) {
       result.customer = custMatch[1].trim();
     }
@@ -186,6 +189,7 @@ var PageGenerator = (function () {
     var subjMatch = prompt.match(/regarding\s+(.+?)(?:\.|,|$)/i);
     if (subjMatch) result.subject = subjMatch[1].trim();
 
+    result.description = (result.description || '').replace(/\s+for$/i,'').trim();
     return result;
   }
 
@@ -253,7 +257,7 @@ var PageGenerator = (function () {
             '<div class="form-group"><label class="form-label" for="gf-due">Due Date</label>' +
             '<input id="gf-due" type="date" class="form-control" value="' + dueDate + '"/></div>' +
             '<div class="form-group"><label class="form-label" for="gf-status">Payment Status</label>' +
-            '<select id="gf-status" class="form-control"><option value="pending">Pending</option><option value="paid">Paid</option></select></div>' +
+            '<select id="gf-status" class="form-control"><option value="pending">Pending</option><option value="paid">Paid</option><option value="overdue">Overdue</option></select></div>' +
           '</div>'
         : '') +
 
@@ -344,7 +348,7 @@ var PageGenerator = (function () {
       items = [{
         description:    desc,
         quantity_milli: 1000,
-        unit_price_p:   Math.round(amount * 100),
+        unit_price_p:   BizMoney.toMinor(_val('gf-amount'), 2),
         discount_type:  'percent',
         discount_value: 0,
         tax_rate_bp:    gstBp,
@@ -423,7 +427,7 @@ var PageGenerator = (function () {
 
   /* ---- Shared document shell ---- */
   function _docShell(s, title, doc, customer, itemRows, calc, sym, accentColor, statusLabel) {
-    return '<div style="background:white;padding:32px 36px;font-family:Inter,sans-serif;font-size:12px;color:#0B163F;min-height:297mm;box-sizing:border-box">' +
+    return '<div style="background:white;padding:32px 36px;font-family:Segoe UI,Arial,sans-serif;font-size:12px;color:#0B163F;min-height:250mm;box-sizing:border-box">' +
 
       '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:28px;padding-bottom:20px;border-bottom:3px solid #2563EB">' +
         '<div>' +
@@ -498,7 +502,7 @@ var PageGenerator = (function () {
     var s     = settings;
     var title = { letter: 'BUSINESS LETTER', agreement: 'AGREEMENT', report: 'REPORT', custom: 'DOCUMENT' }[docType] || 'DOCUMENT';
 
-    return '<div style="background:white;padding:32px 36px;font-family:Inter,sans-serif;font-size:12px;color:#0B163F;min-height:297mm;box-sizing:border-box">' +
+    return '<div style="background:white;padding:32px 36px;font-family:Segoe UI,Arial,sans-serif;font-size:12px;color:#0B163F;min-height:250mm;box-sizing:border-box">' +
 
       '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:28px;padding-bottom:20px;border-bottom:3px solid #2563EB">' +
         '<div>' +
@@ -562,6 +566,7 @@ var PageGenerator = (function () {
       return;
     }
 
+    if (!BizStorage.validDate(date)) { BizToast.show('Enter a valid issue date.', 'warning'); return; }
     var data = {
       type:        docType,
       customer_id: custId,
@@ -576,13 +581,13 @@ var PageGenerator = (function () {
 
     if (isFinancial) {
       var desc   = _val('gf-desc')   || '';
-      var amount = parseFloat(_val('gf-amount') || '0') || 0;
+      var amount = Number(_val('gf-amount') || NaN);
       var gstBp  = parseInt(_selVal('gf-gst') || '1800') || 0;
 
       data.items = [{
         description:    desc,
         quantity_milli: 1000,
-        unit_price_p:   Math.round(amount * 100),
+        unit_price_p:   BizMoney.toMinor(_val('gf-amount'), 2),
         discount_type:  'percent',
         discount_value: 0,
         tax_rate_bp:    gstBp,
@@ -609,6 +614,10 @@ var PageGenerator = (function () {
       };
     }
 
+    var editId = window.location.hash.split('/generator/edit/')[1];
+    if (editId) data.id = editId;
+    if (isFinancial) { var error = BizStorage.validateItems(data.items); if (error) { BizToast.show(error,'warning'); return; } }
+    if (!isFinancial && !data.body_json.body.trim()) { BizToast.show('Document content is required.', 'warning'); return; }
     var saved = BizStorage.saveDocument(data);
     if (!saved) { BizToast.show('Could not save.', 'error'); return; }
 
@@ -624,10 +633,11 @@ var PageGenerator = (function () {
     if (!preview) return;
     var html = preview.innerHTML;
     var w    = window.open('', '_blank');
+    if (!w) { BizToast.show('Allow popups to print this document.', 'warning'); return; }
     w.document.write(
       '<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>Generated Document</title>' +
       '<style>body{margin:0;padding:0;font-family:Inter,"Segoe UI",sans-serif;}' +
-      '@page{size:A4 portrait;margin:14mm 16mm;}' +
+      '@page{size:A4 portrait;margin:12mm;}table{width:100%;border-collapse:collapse;}tr{break-inside:avoid;}' +
       '@media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact;}}</style>' +
       '</head><body>' + html +
       '<script>window.onload=function(){window.print();};<\/script></body></html>'
@@ -766,5 +776,23 @@ var PageGenerator = (function () {
   function _iPrint()    { return '<svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16"><path d="M19 8H5c-1.66 0-3 1.34-3 3v6h4v4h12v-4h4v-6c0-1.66-1.34-3-3-3zm-3 11H8v-5h8v5zm3-7c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1zm-1-9H6v4h12V3z"/></svg>'; }
   function _iDocBig()   { return '<svg viewBox="0 0 24 24" fill="currentColor" width="64" height="64"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6zm4 18H6V4h7v5h5v11z"/></svg>'; }
 
-  return { render };
+  function _loadExisting(id) {
+    var doc = BizStorage.getDocumentById(id);
+    if (!doc) { BizToast.show('Document not found.','warning'); BizRouter.navigate('/documents'); return; }
+    if (doc.type === 'quotation' || doc.type === 'invoice') { BizRouter.navigate('/' + (doc.type === 'quotation' ? 'quotations' : 'invoices') + '/edit/' + id); return; }
+    _state.docType = doc.type; _state.generated = true;
+    document.getElementById('gen-fields-panel').innerHTML = _buildFieldsPanel({docType:doc.type,subject:doc.body_json.subject});
+    var values = {'gf-customer':doc.customer_id,'gf-date':doc.issue_date,'gf-subject':doc.body_json.subject,'gf-body':doc.body_json.body,'gf-notes':doc.notes};
+    Object.keys(values).forEach(function(key){var el=document.getElementById(key);if(el)el.value=values[key]||'';});
+    document.querySelectorAll('.gen-type-btn').forEach(function(b){b.classList.toggle('active',b.dataset.type===doc.type);b.disabled=true;});
+    document.getElementById('btn-generate').disabled=true;
+    document.getElementById('btn-clear-prompt').disabled=true;
+    document.getElementById('btn-gen-print').style.display='inline-flex';
+    document.getElementById('btn-gen-save').style.display='inline-flex';
+    document.getElementById('btn-gen-save').textContent='Save changes';
+    _bindFieldEvents(); _refreshPreviewFromFields();
+  }
+  // Provider boundary: a future AI adapter can implement this same parsed-field contract.
+  return { render, parsePrompt:_parsePrompt };
+
 })();

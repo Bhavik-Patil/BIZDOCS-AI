@@ -1,14 +1,13 @@
 {
   "name": "bizdocs-ai",
   "version": "1.0.0",
-  "description": "",
+  "description": "Offline business document automation and management college startup MVP",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "node --test js/*.test.js"
   },
   "keywords": [],
   "author": "",
   "license": "ISC"
 }
-

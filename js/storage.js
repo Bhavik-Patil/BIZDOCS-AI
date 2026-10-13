@@ -43,7 +43,7 @@ var BizStorage = (function () {
 
   function _now() { return new Date().toISOString(); }
 
-  function _today() { return new Date().toISOString().slice(0, 10); }
+  function _today() { var d = new Date(); return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); }
 
   /* ---- Settings ---- */
 
@@ -63,15 +63,19 @@ var BizStorage = (function () {
   }
 
   function saveSettings(data) {
-    _write(KEYS.settings, data);
+    if (!data || !String(data.business_name || '').trim()) return false;
+    if (data.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email)) return false;
+    if (!Number.isInteger(data.default_validity_days) || data.default_validity_days < 1 || data.default_validity_days > 365) return false;
+    if (!Number.isInteger(data.default_gst_bp) || data.default_gst_bp < 0 || data.default_gst_bp > 10000) return false;
+    if (!['INR','USD','EUR','GBP','AED'].includes(data.currency)) return false;
+    return _write(KEYS.settings, data);
   }
 
   /* ---- Session (demo auth) ---- */
 
   function login(email, password) {
     if (email === 'demo@bizdocs.ai' && password === 'demo123') {
-      _write(KEYS.session, { email: email, name: 'Demo User', loggedIn: true });
-      return true;
+      return _write(KEYS.session, { email: email, name: 'Demo User', loggedIn: true });
     }
     return false;
   }
@@ -90,10 +94,12 @@ var BizStorage = (function () {
   function _nextRef(type) {
     var counters = _read(KEYS.counters) || {};
     var n = (counters[type] || 0) + 1;
-    counters[type] = n;
-    _write(KEYS.counters, counters);
     var prefix = { quotation: 'QT', invoice: 'INV', letter: 'LTR', agreement: 'AGR', report: 'RPT', custom: 'DOC' };
-    return (prefix[type] || 'DOC') + '-' + String(n).padStart(4, '0');
+    var ref;
+    do { ref = (prefix[type] || 'DOC') + '-' + String(n++).padStart(4, '0'); } while (getDocuments().some(function(d){return d.reference_no === ref;}));
+    counters[type] = n - 1;
+    if (!_write(KEYS.counters, counters)) return null;
+    return ref;
   }
 
   /* ---- Customers ---- */
@@ -107,6 +113,8 @@ var BizStorage = (function () {
   }
 
   function saveCustomer(data) {
+    if (!data || !String(data.name || '').trim()) return null;
+    if (data.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email)) return null;
     var customers = getCustomers();
     if (data.id) {
       // Update
@@ -118,13 +126,13 @@ var BizStorage = (function () {
       data = Object.assign({}, data, { id: _newId(), created_at: _now(), updated_at: _now() });
       customers.push(data);
     }
-    _write(KEYS.customers, customers);
-    return data;
+    return _write(KEYS.customers, customers) ? data : null;
   }
 
   function deleteCustomer(id) {
+    if (getDocumentsByCustomer(id).length) return false;
     var customers = getCustomers().filter(function (c) { return c.id !== id; });
-    _write(KEYS.customers, customers);
+    return _write(KEYS.customers, customers);
   }
 
   /* ---- Documents (quotations, invoices, generated docs) ---- */
@@ -142,25 +150,49 @@ var BizStorage = (function () {
   }
 
   function saveDocument(data) {
+    if (!data || !data.type && !data.id) return null;
     var docs = getDocuments();
+    if (data.id) {
+      var previous = getDocumentById(data.id);
+      if (!previous) return null;
+      data = Object.assign({}, previous, data);
+    }
+    if (!['quotation','invoice','letter','agreement','report','custom'].includes(data.type)) return null;
+    if (!getCustomerById(data.customer_id) || !validDate(data.issue_date)) return null;
+    if (data.type === 'quotation' || data.type === 'invoice') {
+      if (validateItems(data.items)) return null;
+      var deadline = data.type === 'quotation' ? data.valid_until : data.due_date;
+      if (deadline && (!validDate(deadline) || deadline < data.issue_date)) return null;
+      if (data.type === 'invoice' && !['paid','pending','overdue'].includes(data.payment_status)) return null;
+      var totals = BizMoney.calcDocument(data.items);
+      data = Object.assign({}, data, {subtotal_p:totals.subtotal_p, discount_p:totals.total_discount_p, tax_p:totals.total_tax_p, total_p:totals.grand_total_p});
+    } else if (!data.body_json || !String(data.body_json.body || '').trim()) return null;
+    if (data.source_quotation_id) {
+      var source = getDocumentById(data.source_quotation_id);
+      if (data.type !== 'invoice' || !source || source.type !== 'quotation' || source.customer_id !== data.customer_id) return null;
+      var linked = docs.find(function(d) { return d.type === 'invoice' && d.source_quotation_id === data.source_quotation_id && d.id !== data.id; });
+      if (linked) return linked;
+    }
+    if (data.reference_no && docs.some(function(d) { return d.id !== data.id && d.reference_no === data.reference_no; })) return null;
     if (data.id) {
       var idx = docs.findIndex(function (d) { return d.id === data.id; });
       if (idx === -1) return null;
       docs[idx] = Object.assign({}, docs[idx], data, { updated_at: _now() });
     } else {
-      var ref = _nextRef(data.type);
+      var ref = data.reference_no || _nextRef(data.type);
+      if (!ref) return null;
       data = Object.assign({ reference_no: ref }, data, {
         id: _newId(), created_at: _now(), updated_at: _now()
       });
       docs.push(data);
     }
-    _write(KEYS.documents, docs);
-    return data;
+    return _write(KEYS.documents, docs) ? data : null;
   }
 
   function deleteDocument(id) {
+    if (getDocuments().some(function(d){return d.source_quotation_id === id;})) return false;
     var docs = getDocuments().filter(function (d) { return d.id !== id; });
-    _write(KEYS.documents, docs);
+    return _write(KEYS.documents, docs);
   }
 
   function duplicateDocument(id) {
@@ -171,8 +203,10 @@ var BizStorage = (function () {
     delete copy.created_at;
     delete copy.updated_at;
     // New reference number for the copy
-    copy.reference_no = _nextRef(copy.type);
+    delete copy.reference_no;
+    delete copy.source_quotation_id;
     copy.issue_date = _today();
+    ['valid_until','due_date'].forEach(function(key){if(copy[key]) { var days=Math.max(1,Math.round((new Date(original[key])-new Date(original.issue_date))/86400000));var next=new Date(copy.issue_date+'T12:00:00Z');next.setUTCDate(next.getUTCDate()+days);copy[key]=next.toISOString().slice(0,10); }});
     if (copy.payment_status) copy.payment_status = 'pending';
     return saveDocument(copy);
   }
@@ -226,9 +260,31 @@ var BizStorage = (function () {
     return JSON.stringify(data, null, 2);
   }
 
+  function validDate(value) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(value || '')) return false;
+    var date = new Date(value + 'T12:00:00Z');
+    return !isNaN(date) && date.toISOString().slice(0,10) === value;
+  }
+  function validateItems(items) {
+    if (!Array.isArray(items) || !items.length) return 'Add at least one item.';
+    for (var item of items) {
+      if (!item || !String(item.description || '').trim()) return 'Each item needs a description.';
+      if (!Number.isSafeInteger(item.quantity_milli) || item.quantity_milli <= 0 || item.quantity_milli > 1000000000) return 'Quantity must be greater than zero and within range.';
+      if (!Number.isSafeInteger(item.unit_price_p) || item.unit_price_p < 0 || item.unit_price_p > 100000000000) return 'Enter a valid non-negative rate.';
+      if (!Number.isFinite(item.discount_value) || item.discount_value < 0 || !['percent','fixed'].includes(item.discount_type)) return 'Enter a valid discount.';
+      if (item.discount_type === 'fixed' && !Number.isSafeInteger(item.discount_value)) return 'Fixed discounts must use whole minor units.';
+      if (item.discount_type === 'percent' && item.discount_value > 100) return 'Percentage discount cannot exceed 100%.';
+      if (!Number.isSafeInteger(item.tax_rate_bp) || item.tax_rate_bp < 0 || item.tax_rate_bp > 10000) return 'GST must be between 0% and 100%.';
+      if (!Number.isSafeInteger(item.quantity_milli * item.unit_price_p)) return 'Item amount is too large.';
+      if (item.discount_type === 'fixed' && item.discount_value > BizMoney.calcLine(Object.assign({},item,{discount_value:0})).gross_p) return 'Fixed discount cannot exceed the item amount.';
+    }
+    if (!Number.isSafeInteger(BizMoney.calcDocument(items).grand_total_p)) return 'Document amount is too large.';
+    return '';
+  }
+
   /* ---- Public API ---- */
   return {
-    getSettings, saveSettings,
+    getSettings, saveSettings, validateItems, validDate,
     login, logout, getSession, isLoggedIn,
     getCustomers, getCustomerById, saveCustomer, deleteCustomer,
     getDocuments, getDocumentById, getDocumentsByCustomer,

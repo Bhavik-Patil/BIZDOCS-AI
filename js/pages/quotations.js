@@ -167,7 +167,7 @@ var PageQuotations = (function () {
     // Default items for new quotation
     var items = (doc && doc.items && doc.items.length)
       ? doc.items
-      : [_blankItem(settings.default_gst_bp || 1800)];
+      : [_blankItem(settings.default_gst_bp ?? 1800)];
 
     document.getElementById('app').innerHTML =
       BizSidebar.render() +
@@ -209,7 +209,7 @@ var PageQuotations = (function () {
       unit_price_p:   0,
       discount_type:  'percent',
       discount_value: 0,
-      tax_rate_bp:    defaultGst || 1800,
+      tax_rate_bp:    defaultGst ?? 1800,
     };
   }
 
@@ -242,10 +242,13 @@ var PageQuotations = (function () {
           '<div class="form-error" id="err-q-customer"></div>' +
         '</div>' +
         '<div class="form-group">' +
-          '<label class="form-label" for="q-ref">Reference No.</label>' +
+          '<label class="form-label" for="q-ref">Quotation No.</label>' +
           '<input id="q-ref" type="text" class="form-control" value="' + _esc(v.reference_no || '') + '" placeholder="Auto-generated if blank"/>' +
         '</div>' +
       '</div>' +
+
+      '<div class="form-group"><label class="form-label" for="q-external">Customer Reference (optional)</label>' +
+      '<input id="q-external" class="form-control" value="' + _esc(v.external_reference || '') + '" placeholder="e.g. Project brief / purchase order"/></div>' +
 
       /* Dates row */
       '<div class="form-row">' +
@@ -384,6 +387,7 @@ var PageQuotations = (function () {
     var validDate= _val('q-valid')   || (doc && doc.valid_until)  || '';
     var notes    = _val('q-notes')   || (doc && doc.notes)        || '';
     var terms    = _val('q-terms')   || (doc && doc.terms)        || '';
+    var externalRef = _val('q-external') || (doc && doc.external_reference) || '';
     var custSel  = _selVal('q-customer');
     if (custSel) customer = BizStorage.getCustomerById(custSel);
 
@@ -413,8 +417,8 @@ var PageQuotations = (function () {
       '</tr>';
     }).join('');
 
-    return '<div style="background:white;padding:32px 36px;font-family:Inter,sans-serif;' +
-           'font-size:12px;color:#0B163F;min-height:297mm;box-sizing:border-box">' +
+    return '<div style="background:white;padding:32px 36px;font-family:Segoe UI,Arial,sans-serif;' +
+           'font-size:12px;color:#0B163F;min-height:250mm;box-sizing:border-box">' +
 
       /* Header */
       '<div style="display:flex;justify-content:space-between;align-items:flex-start;' +
@@ -431,6 +435,7 @@ var PageQuotations = (function () {
           '<div style="font-size:20px;font-weight:800;color:#2563EB;letter-spacing:-0.5px">QUOTATION</div>' +
           '<div style="font-size:13px;font-weight:700;color:#0B163F;margin-top:4px">' + _esc(refNo) + '</div>' +
           '<div style="font-size:10.5px;color:#64748B;margin-top:4px">Date: ' + _fmtDate(issueDate) + '</div>' +
+          (externalRef ? '<div style="font-size:10.5px;color:#64748B;margin-top:4px">Reference: ' + _esc(externalRef) + '</div>' : '') +
           (validDate ? '<div style="font-size:10.5px;color:#64748B">Valid: ' + _fmtDate(validDate) + '</div>' : '') +
         '</div>' +
       '</div>' +
@@ -533,7 +538,7 @@ var PageQuotations = (function () {
       var container = document.getElementById('items-container');
       var idx       = container.querySelectorAll('.item-row').length;
       var div       = document.createElement('div');
-      div.innerHTML = _itemRowHtml(_blankItem(settings.default_gst_bp || 1800), idx);
+      div.innerHTML = _itemRowHtml(_blankItem(settings.default_gst_bp ?? 1800), idx);
       container.appendChild(div.firstChild);
       _bindItemEvents(settings);
       _recalcAll(settings);
@@ -584,7 +589,7 @@ var PageQuotations = (function () {
     });
 
     /* Preview refresh on header fields */
-    ['q-customer','q-ref','q-date','q-valid','q-notes','q-terms'].forEach(function (id) {
+    ['q-customer','q-ref','q-external','q-date','q-valid','q-notes','q-terms'].forEach(function (id) {
       var el = document.getElementById(id);
       if (el) {
         el.oninput  = function () { _refreshPreview(settings); };
@@ -598,18 +603,18 @@ var PageQuotations = (function () {
     var rows  = document.querySelectorAll('.item-row');
     var items = [];
     rows.forEach(function (row) {
-      var qty   = parseFloat(row.querySelector('.item-qty').value)   || 0;
-      var price = parseFloat(row.querySelector('.item-price').value) || 0;
-      var discVal = parseFloat(row.querySelector('.item-disc-val').value) || 0;
+      var qty   = Number(row.querySelector('.item-qty').value || NaN);
+      var price = Number(row.querySelector('.item-price').value || NaN);
+      var discVal = Number(row.querySelector('.item-disc-val').value || NaN);
       var discType= row.querySelector('.item-disc-type').value;
       var gstBp   = parseInt(row.querySelector('.item-gst').value)   || 0;
 
       items.push({
         description:    row.querySelector('.item-desc').value.trim(),
-        quantity_milli: Math.round(qty   * 1000),
-        unit_price_p:   Math.round(price * 100),
+        quantity_milli: BizMoney.toMinor(row.querySelector('.item-qty').value, 3),
+        unit_price_p:   BizMoney.toMinor(row.querySelector('.item-price').value, 2),
         discount_type:  discType,
-        discount_value: discType === 'fixed' ? Math.round(discVal * 100) : discVal,
+        discount_value: discType === 'fixed' ? BizMoney.toMinor(row.querySelector('.item-disc-val').value, 2) : discVal,
         tax_rate_bp:    gstBp,
       });
     });
@@ -663,7 +668,11 @@ var PageQuotations = (function () {
     if (!issueDate) { BizToast.show('Issue date is required.', 'warning'); valid = false; }
     if (!valid) return;
 
+    var deadline = _val('q-valid');
+    if (!BizStorage.validDate(issueDate) || (deadline && (!BizStorage.validDate(deadline) || deadline < issueDate))) { BizToast.show('Enter valid dates. The end date must be on or after the issue date.', 'warning'); return; }
     var items = _readItems();
+    var itemError = BizStorage.validateItems(items);
+    if (itemError) { BizToast.show(itemError, 'warning'); return; }
     var calc  = BizMoney.calcDocument(items);
 
     var data = {
@@ -671,6 +680,7 @@ var PageQuotations = (function () {
       customer_id: customerId,
       issue_date:  issueDate,
       valid_until: _val('q-valid') || '',
+      external_reference: _val('q-external'),
       notes:       _val('q-notes') || '',
       terms:       _val('q-terms') || '',
       items:       items,
@@ -700,13 +710,14 @@ var PageQuotations = (function () {
     if (!doc) return;
 
     var printWin = window.open('', '_blank');
+    if (!printWin) { BizToast.show('Allow popups to open the PDF print preview.', 'warning'); return; }
     printWin.document.write(
       '<!DOCTYPE html><html><head>' +
       '<meta charset="UTF-8"/>' +
       '<title>' + _esc(doc.reference_no) + ' — BizDocs AI</title>' +
       '<style>' +
         'body{margin:0;padding:0;font-family:Inter,"Segoe UI",sans-serif;}' +
-        '@page{size:A4 portrait;margin:14mm 16mm;}' +
+        '@page{size:A4 portrait;margin:12mm;}table{width:100%;border-collapse:collapse;}tr{break-inside:avoid;}' +
         '@media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact;}}' +
       '</style>' +
       '</head><body>' +
@@ -718,14 +729,16 @@ var PageQuotations = (function () {
   }
 
   function _triggerPrint(docId, settings) {
-    if (docId) { _printDoc(docId); return; }
+
     var items    = _readItems();
     var customers= BizStorage.getCustomers();
     var printWin = window.open('', '_blank');
+    if (!printWin) { BizToast.show('Allow popups to open the PDF print preview.', 'warning'); return; }
     var fakeDoc  = {
       reference_no: _val('q-ref') || 'PREVIEW',
       issue_date:   _val('q-date'),
       valid_until:  _val('q-valid'),
+      external_reference: _val('q-external'),
       notes:        _val('q-notes'),
       terms:        _val('q-terms'),
       customer_id:  _selVal('q-customer'),
@@ -735,7 +748,7 @@ var PageQuotations = (function () {
       '<!DOCTYPE html><html><head>' +
       '<meta charset="UTF-8"/><title>Quotation Preview</title>' +
       '<style>body{margin:0;padding:0;font-family:Inter,"Segoe UI",sans-serif;}' +
-      '@page{size:A4 portrait;margin:14mm 16mm;}' +
+      '@page{size:A4 portrait;margin:12mm;}table{width:100%;border-collapse:collapse;}tr{break-inside:avoid;}' +
       '@media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact;}}</style>' +
       '</head><body>' +
       _buildPreview(fakeDoc, customers, settings, items) +
@@ -776,7 +789,7 @@ var PageQuotations = (function () {
     document.getElementById('close-confirm').addEventListener('click', _close);
     document.getElementById('cancel-del').addEventListener('click',    _close);
     document.getElementById('confirm-del').addEventListener('click', function () {
-      BizStorage.deleteDocument(id);
+      if (!BizStorage.deleteDocument(id)) { BizToast.show('Could not delete. Check browser storage; a quotation linked to an invoice must be retained.', 'error'); return; }
       _close();
       BizToast.show('Quotation deleted.', 'success');
       _renderList();
@@ -814,5 +827,5 @@ var PageQuotations = (function () {
   function _iSearch()  { return '<svg class="toolbar__search-icon" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 3.5a5.5 5.5 0 100 11 5.5 5.5 0 000-11zM2 9a7 7 0 1112.452 4.391l3.328 3.329a.75.75 0 11-1.06 1.06l-3.329-3.328A7 7 0 012 9z" clip-rule="evenodd"/></svg>'; }
   function _iEmptyDoc(){ return '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6zm4 18H6V4h7v5h5v11z"/></svg>'; }
 
-  return { render };
+  return { _buildPreview, render };
 })();

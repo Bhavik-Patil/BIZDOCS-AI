@@ -2,9 +2,7 @@
    BizDocs AI — Main application entry point
    ============================================================ */
 
-// ── Demo mode: always show login on fresh page load ──────────
-// Remove this line if you want "stay logged in" behaviour
-BizStorage.logout();
+// The demo session remains active until the user signs out.
 
 /* Shared logout handler used by header component */
 function _handleLogout() {
@@ -42,7 +40,10 @@ BizRouter.register('/generator',  PageGenerator.render);
 BizRouter.register('/settings',   PageSettings.render);
 
 /* Run seed data — no-op after first run */
-BizSeed.run();
+try { BizSeed.run(); } catch (error) {
+  console.error('Demo storage initialization failed.');
+  BizToast.show('Browser storage is unavailable or full. Enable local storage and reload to use the demo.', 'error');
+}
 
 /* Start router */
 BizRouter.init();

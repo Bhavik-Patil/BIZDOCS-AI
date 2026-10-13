@@ -33,19 +33,21 @@ const server = http.createServer((req, res) => {
   }
 
   // Parse URL pathname, removing query strings/hashes
-  const reqUrl = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
-  let pathname = decodeURIComponent(reqUrl.pathname);
-
-  if (pathname === '/' || pathname === '') {
-    pathname = '/index.html';
+  let pathname;
+  try {
+    pathname = decodeURIComponent(new URL(req.url, 'http://localhost').pathname);
+  } catch (error) {
+    res.writeHead(400, { 'Content-Type': 'text/plain; charset=utf-8' });
+    res.end('Bad Request'); return;
   }
-
-  // Prevent directory traversal attacks
-  const safePath = path.normalize(path.join(ROOT_DIR, pathname));
-  if (!safePath.startsWith(ROOT_DIR)) {
-    res.writeHead(403, { 'Content-Type': 'text/plain; charset=utf-8' });
-    res.end('Forbidden');
-    return;
+  if (pathname === '/') pathname = '/index.html';
+  if (!(pathname === '/index.html' || /^\/(?:css|js|assets)\/[a-zA-Z0-9_./-]+$/.test(pathname)) || pathname.split('/').some(part => part.startsWith('.'))) {
+    res.writeHead(404); res.end('Not Found'); return;
+  }
+  const safePath = path.resolve(ROOT_DIR, '.' + pathname);
+  const relative = path.relative(ROOT_DIR, safePath);
+  if (relative.startsWith('..') || path.isAbsolute(relative)) {
+    res.writeHead(403); res.end('Forbidden'); return;
   }
 
   fs.stat(safePath, (err, stats) => {
@@ -80,7 +82,7 @@ const server = http.createServer((req, res) => {
   });
 });
 
-server.listen(PORT, () => {
+server.listen(PORT, '127.0.0.1', () => {
   console.log(`\n==================================================`);
   console.log(` BizDocs AI is running!`);
   console.log(` Local URL: http://localhost:${PORT}`);

@@ -42,7 +42,7 @@ var BizRouter = (function () {
     }
 
     // Prefix match for sub-routes (e.g. /customers/new, /customers/edit/abc123)
-    var prefixes = ['/customers', '/quotations', '/invoices', '/invoices/from', '/documents'];
+    var prefixes = ['/customers', '/quotations', '/invoices', '/invoices/from', '/documents', '/generator'];
     for (var i = 0; i < prefixes.length; i++) {
       if (path.startsWith(prefixes[i] + '/') || path === prefixes[i]) {
         if (routes[prefixes[i]]) {

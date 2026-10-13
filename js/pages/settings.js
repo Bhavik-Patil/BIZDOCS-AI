@@ -214,7 +214,7 @@ var PageSettings = (function () {
     var phone   = (document.getElementById('s-phone').value   || '').trim();
     var gstNo   = (document.getElementById('s-gst-no').value  || '').trim();
     var address = (document.getElementById('s-address').value || '').trim();
-    var validity= parseInt(document.getElementById('s-validity').value) || 30;
+    var validity= Number(document.getElementById('s-validity').value);
 
     /* Currency */
     var currSel  = document.getElementById('s-currency');
@@ -222,7 +222,7 @@ var PageSettings = (function () {
     var sym      = (currSel.selectedOptions[0] && currSel.selectedOptions[0].getAttribute('data-sym')) || '₹';
 
     /* GST */
-    var gstBp = parseInt(document.getElementById('s-gst-pct').value) || 1800;
+    var gstBp = Number(document.getElementById('s-gst-pct').value);
 
     /* Validate */
     if (!bname) {
@@ -232,7 +232,9 @@ var PageSettings = (function () {
       return;
     }
 
-    BizStorage.saveSettings({
+    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { BizToast.show('Enter a valid business email.', 'warning'); return; }
+    if (!Number.isInteger(validity) || validity < 1 || validity > 365) { BizToast.show('Validity must be a whole number between 1 and 365 days.', 'warning'); return; }
+    var saved = BizStorage.saveSettings({
       business_name:         bname,
       email:                 email,
       phone:                 phone,
@@ -245,6 +247,7 @@ var PageSettings = (function () {
       logo_data_url:         BizStorage.getSettings().logo_data_url || null,
     });
 
+    if (!saved) { BizToast.show('Could not save settings. Browser storage may be full.', 'error'); return; }
     BizToast.show('Settings saved!', 'success');
 
     var errEl = document.getElementById('settings-form-error');

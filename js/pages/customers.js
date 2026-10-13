@@ -357,7 +357,7 @@ var PageCustomers = (function () {
           '</div>' +
           '<div class="modal-footer">' +
             '<button class="btn btn-secondary" id="close-modal-2">Close</button>' +
-            '<button class="btn btn-primary" onclick="BizRouter.navigate(\'/customers/edit/' + customer.id + '\')">' +
+            '<button class="btn btn-primary" id="edit-modal-customer">' +
               _iEdit() + ' Edit Customer' +
             '</button>' +
           '</div>' +
@@ -370,6 +370,7 @@ var PageCustomers = (function () {
     wrap.innerHTML = modalHtml;
     document.body.appendChild(wrap);
 
+    document.getElementById('edit-modal-customer').addEventListener('click',function(){_closeModal();BizRouter.navigate('/customers/edit/' + customer.id);});
     document.getElementById('close-modal').addEventListener('click',   _closeModal);
     document.getElementById('close-modal-2').addEventListener('click', _closeModal);
     document.getElementById('customer-modal').addEventListener('click', function (e) {
@@ -397,6 +398,7 @@ var PageCustomers = (function () {
     if (!customer) return;
 
     var docs = BizStorage.getDocumentsByCustomer(id);
+    if (docs.length) { BizToast.show('This customer has saved documents. Keep the customer to preserve their document history.', 'warning'); return; }
     var warning = docs.length
       ? '<p style="color:var(--clr-warning);font-size:13px;margin-top:var(--sp-3)">' +
           '⚠ This customer has ' + docs.length + ' document' + (docs.length !== 1 ? 's' : '') +
@@ -440,7 +442,7 @@ var PageCustomers = (function () {
     });
 
     document.getElementById('confirm-delete').addEventListener('click', function () {
-      BizStorage.deleteCustomer(id);
+      if (!BizStorage.deleteCustomer(id)) { BizToast.show('Could not delete customer.', 'error'); return; }
       _close();
       BizToast.show('Customer deleted.', 'success');
       _renderList();

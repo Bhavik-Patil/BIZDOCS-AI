@@ -361,3 +361,11 @@ describe('isOverdue — invoice overdue check', () => {
   });
 
 });
+describe('toMinor — strict decimal parsing',()=>{
+  test('1.01 rupees converts exactly to 101 paise',()=>assert.equal(M.toMinor('1.01',2),101));
+  test('fractional quantity converts to thousandths',()=>assert.equal(M.toMinor('0.125',3),125));
+  test('rejects excess decimal precision rather than silently rounding',()=>assert.ok(Number.isNaN(M.toMinor('1.005',2))));
+  test('rejects exponent, junk, empty, infinity and negative input',()=>{for(const v of ['1e3','12abc','',Infinity,'-1'])assert.ok(Number.isNaN(M.toMinor(v,2)));});
+  test('explicit overdue status is honored without a date',()=>assert.equal(M.isOverdue({payment_status:'overdue'}),true));
+  test('null item is safe in preview calculation',()=>assert.equal(M.calcDocument([null]).grand_total_p,0));
+});

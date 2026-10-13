@@ -256,7 +256,7 @@ var PageInvoices = (function () {
     var doc = BizStorage.getDocumentById(id);
     if (!doc) return;
     var next = doc.payment_status === 'paid' ? 'pending' : 'paid';
-    BizStorage.saveDocument({ id: id, payment_status: next });
+    if (!BizStorage.saveDocument({ id: id, payment_status: next })) { BizToast.show('Could not update payment status.', 'error'); return; }
     BizToast.show('Status updated to ' + next + '.', 'success');
     _renderList();
   }
@@ -348,10 +348,12 @@ var PageInvoices = (function () {
     var customers = BizStorage.getCustomers();
 
     /* Pre-fill from quotation if converting */
-    var prefill = existing || sourceQ || {};
+    var prefill = existing || (sourceQ ? Object.assign({},sourceQ,{reference_no:'', issue_date:BizStorage._today(),payment_status:'pending'}) : {});
+    var linked = sourceQ && BizStorage.getDocuments().find(function(d){return d.type === 'invoice' && d.source_quotation_id === sourceQ.id;});
+    if (linked) { BizToast.show('This quotation already has an invoice.', 'info'); BizRouter.navigate('/invoices/edit/' + linked.id); return; }
     var items   = (prefill.items && prefill.items.length)
       ? prefill.items
-      : [_blankItem(settings.default_gst_bp || 1800)];
+      : [_blankItem(settings.default_gst_bp ?? 1800)];
 
     var title = existing  ? 'Edit Invoice'
               : sourceQ   ? 'Invoice from ' + sourceQ.reference_no
@@ -391,7 +393,7 @@ var PageInvoices = (function () {
     return {
       description: '', quantity_milli: 1000,
       unit_price_p: 0, discount_type: 'percent',
-      discount_value: 0, tax_rate_bp: defaultGst || 1800,
+      discount_value: 0, tax_rate_bp: defaultGst ?? 1800,
     };
   }
 
@@ -406,7 +408,7 @@ var PageInvoices = (function () {
       return '<option value="' + c.id + '"' + sel + '>' + _esc(c.company || c.name) + '</option>';
     }).join('');
 
-    var statusOptions = ['pending','paid'].map(function (s) {
+    var statusOptions = ['pending','paid','overdue'].map(function (s) {
       var lbl = s.charAt(0).toUpperCase() + s.slice(1);
       var sel = (v.payment_status === s || (!v.payment_status && s === 'pending')) ? ' selected' : '';
       return '<option value="' + s + '"' + sel + '>' + lbl + '</option>';
@@ -595,7 +597,7 @@ var PageInvoices = (function () {
       '</tr>';
     }).join('');
 
-    return '<div style="background:white;padding:32px 36px;font-family:Inter,sans-serif;font-size:12px;color:#0B163F;min-height:297mm;box-sizing:border-box">' +
+    return '<div style="background:white;padding:32px 36px;font-family:Segoe UI,Arial,sans-serif;font-size:12px;color:#0B163F;min-height:250mm;box-sizing:border-box">' +
 
       /* Header */
       '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:28px;padding-bottom:20px;border-bottom:3px solid #2563EB">' +
@@ -689,7 +691,7 @@ var PageInvoices = (function () {
       var container = document.getElementById('items-container');
       var idx       = container.querySelectorAll('.item-row').length;
       var div       = document.createElement('div');
-      div.innerHTML = _itemRowHtml(_blankItem(settings.default_gst_bp||1800), idx);
+      div.innerHTML = _itemRowHtml(_blankItem(settings.default_gst_bp ?? 1800), idx);
       container.appendChild(div.firstChild);
       _bindItemEvents(settings);
       _recalcAll(settings);
@@ -735,17 +737,17 @@ var PageInvoices = (function () {
     var rows = document.querySelectorAll('.item-row');
     var items = [];
     rows.forEach(function (row) {
-      var qty      = parseFloat(row.querySelector('.item-qty').value)       || 0;
-      var price    = parseFloat(row.querySelector('.item-price').value)     || 0;
-      var discVal  = parseFloat(row.querySelector('.item-disc-val').value)  || 0;
+      var qty      = Number(row.querySelector('.item-qty').value || NaN);
+      var price    = Number(row.querySelector('.item-price').value || NaN);
+      var discVal  = Number(row.querySelector('.item-disc-val').value || NaN);
       var discType = row.querySelector('.item-disc-type').value;
       var gstBp    = parseInt(row.querySelector('.item-gst').value)         || 0;
       items.push({
         description:    row.querySelector('.item-desc').value.trim(),
-        quantity_milli: Math.round(qty   * 1000),
-        unit_price_p:   Math.round(price * 100),
+        quantity_milli: BizMoney.toMinor(row.querySelector('.item-qty').value, 3),
+        unit_price_p:   BizMoney.toMinor(row.querySelector('.item-price').value, 2),
         discount_type:  discType,
-        discount_value: discType==='fixed' ? Math.round(discVal*100) : discVal,
+        discount_value: discType==='fixed' ? BizMoney.toMinor(row.querySelector('.item-disc-val').value, 2) : discVal,
         tax_rate_bp:    gstBp,
       });
     });
@@ -782,7 +784,11 @@ var PageInvoices = (function () {
     }
     if (!issueDate) { BizToast.show('Issue date is required.','warning'); return; }
 
+    var deadline = _val('i-due');
+    if (!BizStorage.validDate(issueDate) || (deadline && (!BizStorage.validDate(deadline) || deadline < issueDate))) { BizToast.show('Enter valid dates. The end date must be on or after the issue date.', 'warning'); return; }
     var items = _readItems();
+    var itemError = BizStorage.validateItems(items);
+    if (itemError) { BizToast.show(itemError, 'warning'); return; }
     var calc  = BizMoney.calcDocument(items);
 
     var data = {
@@ -802,6 +808,8 @@ var PageInvoices = (function () {
     var refOverride = _val('i-ref');
     if (refOverride) data.reference_no = refOverride;
     if (existing) data.id = existing.id;
+    var sourceId = window.location.hash.split('/invoices/from/')[1];
+    if (sourceId) data.source_quotation_id = sourceId;
 
     var saved = BizStorage.saveDocument(data);
     if (!saved) { BizToast.show('Could not save. Please try again.','error'); return; }
@@ -818,8 +826,9 @@ var PageInvoices = (function () {
     var customers= BizStorage.getCustomers();
     if (!doc) return;
     var w = window.open('','_blank');
+    if (!w) { BizToast.show('Allow popups to print this document.', 'warning'); return; }
     w.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>'+_esc(doc.reference_no)+'</title>' +
-      '<style>body{margin:0;padding:0;font-family:Inter,"Segoe UI",sans-serif;}@page{size:A4 portrait;margin:14mm 16mm;}' +
+      '<style>body{margin:0;padding:0;font-family:Inter,"Segoe UI",sans-serif;}@page{size:A4 portrait;margin:12mm;}table{width:100%;border-collapse:collapse;}tr{break-inside:avoid;}' +
       '@media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact;}}</style></head><body>' +
       _buildPreview(doc, customers, settings, doc.items||[]) +
       '<script>window.onload=function(){window.print();};<\/script></body></html>');
@@ -827,7 +836,7 @@ var PageInvoices = (function () {
   }
 
   function _triggerPrint(docId, settings) {
-    if (docId) { _printDoc(docId); return; }
+
     var items     = _readItems();
     var customers = BizStorage.getCustomers();
     var fakeDoc   = {
@@ -840,8 +849,9 @@ var PageInvoices = (function () {
       items: items,
     };
     var w = window.open('','_blank');
+    if (!w) { BizToast.show('Allow popups to print this document.', 'warning'); return; }
     w.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>Invoice Preview</title>' +
-      '<style>body{margin:0;padding:0;font-family:Inter,"Segoe UI",sans-serif;}@page{size:A4 portrait;margin:14mm 16mm;}' +
+      '<style>body{margin:0;padding:0;font-family:Inter,"Segoe UI",sans-serif;}@page{size:A4 portrait;margin:12mm;}table{width:100%;border-collapse:collapse;}tr{break-inside:avoid;}' +
       '@media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact;}}</style></head><body>' +
       _buildPreview(fakeDoc, customers, settings, items) +
       '<script>window.onload=function(){window.print();};<\/script></body></html>');
@@ -873,7 +883,7 @@ var PageInvoices = (function () {
     document.getElementById('close-confirm').addEventListener('click', _close);
     document.getElementById('cancel-del').addEventListener('click',    _close);
     document.getElementById('confirm-del').addEventListener('click', function () {
-      BizStorage.deleteDocument(id); _close();
+      if (!BizStorage.deleteDocument(id)) { BizToast.show('Could not delete. Check browser storage; a quotation linked to an invoice must be retained.', 'error'); return; } _close();
       BizToast.show('Invoice deleted.', 'success');
       _renderList();
     });
@@ -920,5 +930,5 @@ var PageInvoices = (function () {
   function _iInvoiceIcon(){ return '<svg viewBox="0 0 24 24" fill="currentColor" width="22" height="22"><path d="M20 4H4c-1.11 0-2 .89-2 2v12c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V6c0-1.11-.89-2-2-2zm0 14H4v-6h16v6zm0-10H4V6h16v2z"/></svg>'; }
   function _iEmptyInv()   { return '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 4H4c-1.11 0-2 .89-2 2v12c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V6c0-1.11-.89-2-2-2zm0 14H4v-6h16v6zm0-10H4V6h16v2z"/></svg>'; }
 
-  return { render };
+  return { _buildPreview, render };
 })();

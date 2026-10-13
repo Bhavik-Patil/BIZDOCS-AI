@@ -16,6 +16,14 @@ var BizMoney = (function () {
     return Math.floor(n + 0.5);
   }
 
+  // Strict decimal conversion: reject excess precision instead of silently changing money.
+  function toMinor(value, decimals) {
+    var match = String(value).trim().match(/^(\d+)(?:\.(\d+))?$/);
+    if (!match || (match[2] || '').length > decimals) return NaN;
+    var result = Number(match[1]) * Math.pow(10, decimals) + Number((match[2] || '').padEnd(decimals, '0'));
+    return Number.isSafeInteger(result) ? result : NaN;
+  }
+
   /* ---- Format paise for display ---- */
   function format(paise, symbol) {
     symbol = symbol || '₹';
@@ -38,6 +46,7 @@ var BizMoney = (function () {
     Returns { gross_p, discount_p, net_p, tax_p, line_total_p }
   */
   function calcLine(item) {
+    item = item || {};
     var qty_milli    = Math.max(0, parseInt(item.quantity_milli)  || 0);
     var price_p      = Math.max(0, parseInt(item.unit_price_p)    || 0);
     var tax_bp       = Math.max(0, parseInt(item.tax_rate_bp)     || 0);
@@ -99,12 +108,13 @@ var BizMoney = (function () {
   function isOverdue(invoice) {
     if (!invoice) return false;
     if (invoice.payment_status === 'paid') return false;
+    if (invoice.payment_status === 'overdue') return true;
     if (!invoice.due_date) return false;
     return invoice.due_date < BizStorage._today();
   }
 
   /* ---- Public API ---- */
-    return { roundP, format, calcLine, calcDocument, isOverdue };
+    return { toMinor, roundP, format, calcLine, calcDocument, isOverdue };
 })();
 
 // Allow Node.js (test runner) to import this file directly

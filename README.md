@@ -1,186 +1,77 @@
-# BizDocs AI
+# BizDocs AI — Smart Documents. Faster Business.
 
-## Smart Documents. Faster Business.
+A college startup MVP for small businesses, freelancers, and local shops. Premium blue-purple SaaS interface, local data, intelligent document templates, and offline A4 PDF downloads.
 
-A professional business document automation platform for small businesses,
-freelancers and startups. Built as an offline-ready college startup MVP.
+## Start the demo
 
----
+1. Extract the project folder on your laptop or another PC.
+2. Double-click **index.html** to open it in Chrome or Edge. No database, installation, or internet connection is required.
+3. Sign in with **demo@bizdocs.ai** / **demo123**.
+4. Add a customer, or select a preloaded sample customer.
+5. Open **Quotations → New Quotation**, select the customer, and enter your services, rates, discount, and GST. Add more rows with **Add Item**.
+6. Check the live A4 preview, then click **Save Quotation**. Reopen it with **Edit**.
+7. Click **Download PDF** for a direct A4 file download. **Print** opens the browser print dialog, where you can also select **Save as PDF**.
+8. Open **Invoices → From Quotation** to convert it. Repeated conversion opens the existing invoice instead of creating another.
 
-## Quick Start (Windows)
+For consistent browser storage, you can also use the optional local server with Node.js 18 or later:
 
-### Requirements
+```powershell
+cd D:\Project\BIZDOCS-AI
+npm start
+```
 
-- Any modern browser (Chrome or Edge recommended)
-- No installation, no server, no internet required
-
-### Steps
-
-1. Extract the project ZIP (if applicable)
-2. Open the `BizDocs-AI` folder
-3. Double-click `index.html`
-4. Chrome or Edge opens automatically
-
-### Demo Login
-
-| Field    | Value           |
-| -------- | --------------- |
-| Email    | demo@bizdocs.ai |
-| Password | demo123         |
-
-> This is a demo login only. Not for production use.
-
----
+Open http://localhost:3000. No `npm install` is needed. The server listens only on this computer. If port 3000 is occupied, use `$env:PORT = '3001'` before `npm start`.
 
 ## Features
 
-| Feature                      | Status     |
-| ---------------------------- | ---------- |
-| Demo login                   | ✅ Working |
-| Dashboard with live stats    | ✅ Working |
-| Customer management (CRUD)   | ✅ Working |
-| Quotation creator            | ✅ Working |
-| Auto GST + discount calc     | ✅ Working |
-| Live A4 preview              | ✅ Working |
-| Invoice management           | ✅ Working |
-| Payment status tracking      | ✅ Working |
-| Quotation → Invoice convert  | ✅ Working |
-| Documents archive + search   | ✅ Working |
-| Date range filter            | ✅ Working |
-| Template-based AI Generator  | ✅ Working |
-| PDF export (browser print)   | ✅ Working |
-| Settings page                | ✅ Working |
-| JSON backup export           | ✅ Working |
-| Offline operation            | ✅ Working |
-| Calculation tests (31 tests) | ✅ Passing |
+- Dashboard with four main statistics, realistic recent documents, quick actions, pending invoices, and document activity.
+- Create Document: Quotation, Invoice, Business Letter, Agreement, Report, and Custom Document.
+- Offline prompt parsing and editable, structured templates. Try: **Create a quotation for ABC Enterprises for website development for ₹40,000 plus 18% GST.**
+- Multiple line items, fractional quantities, fixed or percentage discounts, GST, totals, notes, and terms.
+- Save, reopen, edit, duplicate, print, and download documents.
+- Invoice payment states: Paid, Pending, and Overdue; past-due unpaid invoices are also shown as overdue automatically.
+- Documents archive with reference/customer/type search, type tabs, date filters, and confirmation dialogs before deletion.
+- Customer contact management and document history. Customers referenced by saved documents cannot be deleted, protecting document history. A quotation linked to an invoice is also retained until its invoice is removed.
+- Business profile, logo placeholder, currency, default GST, and default quotation validity.
+- Header document search, outstanding invoice notifications, profile menu, mobile navigation, validation messages, and empty states.
+- JSON backup export from Documents or Settings.
 
----
+## How the important parts work
 
-## Project Structure
+`js/storage.js` is the localStorage repository. It validates saved records, recalculates financial totals, rejects duplicate references, and reports failed writes. Invoice conversion records a `source_quotation_id`; the repository enforces one invoice per source quotation.
 
-BizDocs-AI/
-├── index.html — Single page app entry point
-├── README.md — This file
-├── css/
-│ ├── main.css — Design tokens and variables
-│ ├── layout.css — Sidebar, header, auth layout
-│ ├── components.css — Buttons, cards, forms, tables
-│ └── print.css — PDF print styles
-├── js/
-│ ├── app.js — Entry point and route registration
-│ ├── router.js — Hash-based SPA router
-│ ├── storage.js — localStorage data repository
-│ ├── money.js — Financial calculations (paise)
-│ ├── seed.js — Demo data loader
-│ ├── money.test.js — Automated calculation tests
-│ ├── components/
-│ │ ├── sidebar.js — Navigation sidebar
-│ │ ├── header.js — Top header bar
-│ │ └── toast.js — Notification toasts
-│ └── pages/
-│ ├── login.js
-│ ├── dashboard.js
-│ ├── customers.js
-│ ├── quotations.js
-│ ├── invoices.js
-│ ├── documents.js
-│ ├── generator.js
-│ └── settings.js
-└── assets/
-└── logo.svg — BizDocs AI brand logo
+`js/money.js` stores money in integer minor units (paise for INR), quantities in thousandths, and tax rates in basis points. Gross amounts, discounts, and taxes round half-up per line before summing totals. Numeric limits keep intermediate multiplication within JavaScript's safe integer range.
 
----
+`js/pages/generator.js` parses a prompt into a document type, customer, description, amount, and tax, then fills editable templates. Its exported `parsePrompt` method defines the parsed-field contract for a future provider adapter. This is **template-based generation, not a real AI API**. The core app requires no API key or paid service.
 
-## Running the Calculation Tests
+`js/pdf.js` renders a dedicated copy of the preview and builds A4 pages. Two MIT-licensed libraries are bundled in `js/vendor` for this feature: [html2canvas](https://html2canvas.hertzen.com/documentation) 1.4.1 and [jsPDF](https://github.com/parallax/jsPDF) 4.2.1. They are loaded locally; the app does not contact a CDN. Downloads preserve visible document styling and use page boundaries near table rows where possible.
 
-Requires Node.js (v18 or higher).
+`css/main.css`, `layout.css`, `components.css`, and `polish.css` form the shared design system. `assets/logo.svg` combines a document and sparkle. System fonts keep typography available offline.
+
+## Run automated tests
 
 ```powershell
-cd path\to\BizDocs-AI
-node --test js/money.test.js
+npm test
 ```
 
-Expected result: **31 tests, 31 pass, 0 fail**
+Tests cover financial calculations, rounding, invalid inputs, save/reopen, quota failure, reference numbering, conversion without duplicate invoices, customer history protection, document editing, demo seeding, and static-server request handling. The test runner uses only Node's built-in modules. Final verification: **63 automated tests passed**, JavaScript syntax checks passed, and all local HTML asset references exist. Browser QA verified customer creation, multi-item quotation save/reopen, direct quotation and invoice PDF downloads, repeat-conversion prevention, letter editing, search, notifications, 0% GST defaults, and laptop/mobile layouts. Direct `file://` navigation could not be tested because the browser automation tool allows only HTTP/HTTPS; the walkthrough was verified with the localhost server.
 
----
+## College presentation walkthrough
 
-## PDF Export Instructions
+1. Sign in and introduce the dashboard and locally stored sample records.
+2. Demonstrate the prompt example producing **₹47,200** including 18% GST.
+3. Create a multi-item quotation: ₹40,000 + ₹15,000 with 10% discount on the second item and 18% GST on both. Total: **₹63,130**.
+4. Save, reopen, download PDF, and convert into an invoice.
+5. Repeat conversion to demonstrate duplicate prevention.
+6. Show document search, customer history, payment statuses, notifications, and business settings.
 
-1. Open any quotation or invoice
-2. Click **Print / PDF** button
-3. Browser print dialog opens
-4. Set **Destination** to "Save as PDF"
-5. Set **Paper size** to A4
-6. Set **Margins** to None or Minimum
-7. Enable **Background graphics** (for colours)
-8. Click Save
+## Limits
 
----
+- Authentication is a demo gate; it is not production security or multi-user authentication.
+- Data belongs to the current browser profile and origin. Opening with `file://` and using localhost have separate storage. Keep the same launch method for the presentation. Export backups before clearing browser data.
+- LocalStorage is suitable for a single-tab demo, not concurrent multi-user editing. No cross-device sync or backup import is provided.
+- PDF downloads contain rasterized document pages; use browser **Print → Save as PDF** if you need selectable text. Very long freeform content may span pages. External images are not supported by the offline exporter.
+- The logo is a placeholder; custom logo upload and live AI integration are future extensions.
+- Design follows the supplied blue-purple visual brief. The actual startup PPT was not included for exact comparison.
 
-## Demo Credentials and Data
-
-The following sample data is pre-loaded on first launch:
-
-**Customers:** TechSpark Solutions (your business), ABC Enterprises,
-Sharma & Co., Nexus Digital Agency, Desai Consultants, Patil Industries
-
-**Documents:**
-
-- QT-0001: ABC Enterprises — Website Development ₹47,200 (18% GST)
-- QT-0002: Nexus Digital — Logo + Social Media ₹25,361
-- INV-0001: Sharma & Co. — Software Setup ₹5,900 (Paid)
-- INV-0002: ABC Enterprises — Milestone 1 ₹23,600 (Pending)
-- INV-0003: Patil Industries — ERP Consulting ₹29,500 (Overdue)
-- LTR-0001: Desai Consultants — Proposal Letter
-
----
-
-## Known Limitations
-
-| Limitation           | Notes                                           |
-| -------------------- | ----------------------------------------------- |
-| Demo login only      | Not production-grade authentication             |
-| localStorage storage | Data tied to one browser profile                |
-| PDF = browser print  | Not a true one-click download                   |
-| No real AI           | Generator uses template matching, not an AI API |
-| No multi-user        | Single demo account only                        |
-| No server            | Data does not sync across devices               |
-
----
-
-## Architecture Decisions
-
-| Decision                        | Reason                                       |
-| ------------------------------- | -------------------------------------------- |
-| Vanilla JS, no framework        | Zero install, runs on any PC instantly       |
-| localStorage                    | No server needed for demo                    |
-| Integer paise for money         | Avoids floating-point rounding errors        |
-| Single index.html + hash router | No broken paths when opened from file system |
-| storage.js as data layer        | Easy to swap to Express + SQLite later       |
-
----
-
-## Future Improvements (Phase 9+)
-
-- Node.js + Express + SQLite backend
-- Real authentication with hashed passwords
-- True PDF generation (Puppeteer or WeasyPrint)
-- Claude AI API integration for smart generation
-- Multi-user support
-- WhatsApp / email delivery
-- Mobile app (PWA)
-
----
-
-## Tech Stack
-
-- **Frontend:** HTML5, CSS3, Vanilla JavaScript
-- **Storage:** localStorage (browser)
-- **Tests:** Node.js built-in test runner
-- **PDF:** Browser Print API
-- **Fonts:** Inter (Google Fonts)
-
----
-
-_BizDocs AI — Smart Documents. Faster Business._
-_Built as a college startup MVP — MSBTE Diploma Computer Engineering_
+No external deployment is required. Copy the whole project folder, including `js/vendor`, to demonstrate it on another PC.

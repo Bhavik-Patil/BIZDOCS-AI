@@ -1,0 +1,9 @@
+node_modules/
+tmp/
+output/
+*.pdf
+*.zip
+.env
+.env.*
+!.env.example
+bizdocs-backup-*.json

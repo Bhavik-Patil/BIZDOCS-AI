@@ -137,6 +137,7 @@ var PageDocuments = (function () {
         '<td>' + (status || '<span class="badge badge-draft">—</span>') + '</td>' +
         '<td class="td-actions">' +
           '<button class="btn btn-ghost btn-icon btn-sm doc-view"   data-id="' + d.id + '" title="View">'      + _iEye()    + '</button>' +
+          '<button class="btn btn-ghost btn-icon btn-sm doc-pdf" data-id="' + d.id + '" title="Download PDF">' + _iDownload() + '</button>' +
           '<button class="btn btn-ghost btn-icon btn-sm doc-print"  data-id="' + d.id + '" title="Print/PDF">' + _iPrint()  + '</button>' +
           '<button class="btn btn-ghost btn-icon btn-sm doc-dup"    data-id="' + d.id + '" title="Duplicate">' + _iDup()    + '</button>' +
           '<button class="btn btn-ghost btn-icon btn-sm doc-edit"   data-id="' + d.id + '" title="Edit">'      + _iEdit()   + '</button>' +
@@ -234,6 +235,12 @@ var PageDocuments = (function () {
   }
 
   function _bindTableBtns(settings) {
+    document.querySelectorAll('.doc-pdf').forEach(function(btn){btn.addEventListener('click',function(){
+      var doc=BizStorage.getDocumentById(btn.dataset.id);if(!doc)return;
+      var preview=document.createElement('div');
+      preview.innerHTML=doc.type==='quotation'?PageQuotations._buildPreview(doc,BizStorage.getCustomers(),settings,doc.items):doc.type==='invoice'?PageInvoices._buildPreview(doc,BizStorage.getCustomers(),settings,doc.items):_genericPreview(doc,settings,BizStorage.getCustomers());
+      BizPDF.download(preview,doc.reference_no);
+    });});
     var sym = (settings || {}).currency_symbol || '₹';
 
     /* View */
@@ -268,7 +275,7 @@ var PageDocuments = (function () {
         if (!doc) return;
         if (doc.type === 'quotation') BizRouter.navigate('/quotations/edit/' + doc.id);
         else if (doc.type === 'invoice') BizRouter.navigate('/invoices/edit/' + doc.id);
-        else BizRouter.navigate('/generator');
+        else BizRouter.navigate('/generator/edit/' + doc.id);
       });
     });
 
@@ -350,6 +357,7 @@ var PageDocuments = (function () {
               '</div>'
               : '') +
 
+            (doc.body_json ? '<section class="document-body"><h3 style="font-size:15px;margin-bottom:14px">' + _esc(doc.body_json.subject || 'Document content') + '</h3><div style="white-space:pre-wrap;line-height:1.8;font-size:13px">' + _esc(doc.body_json.body || '') + '</div></section>' : '') +
             (doc.notes ? '<div style="margin-bottom:var(--sp-3)"><div style="font-size:11.5px;font-weight:700;color:var(--clr-text-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">Notes</div><div style="font-size:13px">' + _esc(doc.notes) + '</div></div>' : '') +
             (doc.terms ? '<div><div style="font-size:11.5px;font-weight:700;color:var(--clr-text-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">Terms</div><div style="font-size:13px">' + _esc(doc.terms) + '</div></div>' : '') +
 
@@ -357,9 +365,7 @@ var PageDocuments = (function () {
           '<div class="modal-footer">' +
             '<button class="btn btn-secondary" id="close-view-2">Close</button>' +
             '<button class="btn btn-secondary" id="modal-print-btn">' + _iPrint() + ' Print</button>' +
-            (doc.type === 'quotation' || doc.type === 'invoice'
-              ? '<button class="btn btn-primary" id="modal-edit-btn">' + _iEdit() + ' Edit</button>'
-              : '') +
+            '<button class="btn btn-primary" id="modal-edit-btn">' + _iEdit() + ' Edit</button>' +
           '</div>' +
         '</div>' +
       '</div>';
@@ -384,7 +390,8 @@ var PageDocuments = (function () {
       editBtn.addEventListener('click', function () {
         _close();
         if (doc.type === 'quotation') BizRouter.navigate('/quotations/edit/' + doc.id);
-        else BizRouter.navigate('/invoices/edit/' + doc.id);
+        else if (doc.type === 'invoice') BizRouter.navigate('/invoices/edit/' + doc.id);
+        else BizRouter.navigate('/generator/edit/' + doc.id);
       });
     }
   }
@@ -420,11 +427,12 @@ var PageDocuments = (function () {
     }
 
     var w = window.open('', '_blank');
+    if (!w) { BizToast.show('Allow popups to print this document.', 'warning'); return; }
     w.document.write(
       '<!DOCTYPE html><html><head><meta charset="UTF-8"/>' +
       '<title>' + _esc(doc.reference_no) + '</title>' +
       '<style>body{margin:0;padding:0;font-family:Inter,"Segoe UI",sans-serif;}' +
-      '@page{size:A4 portrait;margin:14mm 16mm;}' +
+      '@page{size:A4 portrait;margin:12mm;}table{width:100%;border-collapse:collapse;}tr{break-inside:avoid;}' +
       '@media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact;}}</style>' +
       '</head><body>' + previewHtml +
       '<script>window.onload=function(){window.print();};<\/script>' +
@@ -439,7 +447,7 @@ var PageDocuments = (function () {
     var body     = (doc.body_json && doc.body_json.body) ? doc.body_json.body : '';
     var subject  = (doc.body_json && doc.body_json.subject) ? doc.body_json.subject : '';
 
-    return '<div style="background:white;padding:32px 36px;font-family:Inter,sans-serif;font-size:12px;color:#0B163F;min-height:297mm;box-sizing:border-box">' +
+    return '<div style="background:white;padding:32px 36px;font-family:Segoe UI,Arial,sans-serif;font-size:12px;color:#0B163F;min-height:250mm;box-sizing:border-box">' +
       '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:28px;padding-bottom:20px;border-bottom:3px solid #2563EB">' +
         '<div>' +
           '<div style="font-size:22px;font-weight:800;background:linear-gradient(135deg,#2563EB,#7C3AED);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:4px">BizDocs AI</div>' +
@@ -519,7 +527,7 @@ var PageDocuments = (function () {
     document.getElementById('close-confirm').addEventListener('click', _close);
     document.getElementById('cancel-del').addEventListener('click',    _close);
     document.getElementById('confirm-del').addEventListener('click', function () {
-      BizStorage.deleteDocument(id);
+      if (!BizStorage.deleteDocument(id)) { BizToast.show('Could not delete. Check browser storage; a quotation linked to an invoice must be retained.', 'error'); return; }
       _close();
       BizToast.show('Document deleted.', 'success');
       _renderList();
