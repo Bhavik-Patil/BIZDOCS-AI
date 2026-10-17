@@ -37,8 +37,9 @@ const server = http.createServer((req, res) => {
         const result = await require('./gemini').generate(input.prompt, input.docType, undefined, input.images||[], input.business||{});
         res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' }); res.end(JSON.stringify(result));
       } catch (error) {
+        console.error('[Generate API Error]:', error.message);
         res.writeHead(400, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: error.message.startsWith('Gemini') || error.message.startsWith('Enter') ? error.message : 'Generation failed. Check the server configuration or try Offline templates.' }));
+        res.end(JSON.stringify({ error: error.message || 'Generation failed. Try again or use Offline templates.' }));
       }
     });
     return;

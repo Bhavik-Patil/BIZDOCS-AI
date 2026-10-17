@@ -2,6 +2,20 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { generate } = require('../gemini');
 const {imageParts,businessContext}=require('../gemini');
+
+test.beforeEach(() => {
+  delete process.env.GEMINI_API_KEY;
+  delete process.env.GROQ_API_KEY;
+  delete process.env.OPENROUTER_API_KEY;
+  delete process.env.AI_PROVIDER;
+});
+
+test.afterEach(() => {
+  delete process.env.GEMINI_API_KEY;
+  delete process.env.GROQ_API_KEY;
+  delete process.env.OPENROUTER_API_KEY;
+  delete process.env.AI_PROVIDER;
+});
 test('reference validation rejects unsafe types, disguised images and excessive uploads',()=>{
   for(const image of [{mimeType:'image/svg+xml',data:'AAAA'},{mimeType:'image/png',data:'AAAA'},{mimeType:'image/png',data:'!'}])assert.throws(()=>imageParts([image]),/Gemini/);
   assert.throws(()=>imageParts([1,2,3]),/2 reference/);
@@ -33,3 +47,66 @@ test('Gemini validates response and sends credentials only in a header', async (
     await assert.rejects(generate('quotation','quotation',async()=>({ok:true,json:async()=>({candidates:[{content:{parts:[{text:JSON.stringify({...sample,amount:-1})}]}}]})})), /invalid/);
   } finally { delete process.env.GEMINI_API_KEY; }
 });
+
+test('Groq validates response, formats auth header and switches to vision on images', async () => {
+  process.env.GROQ_API_KEY = 'gsk_test_groq_key';
+  const sample = { docType: 'invoice', customer: 'Nexus', description: 'Logo', amount: 15000, gstBp: 1800, subject: '', body: '', analysis: '' };
+  const fake = async (url, options) => {
+    assert.equal(url, 'https://api.groq.com/openai/v1/chat/completions');
+    assert.equal(options.headers['Authorization'], 'Bearer gsk_test_groq_key');
+    const body = JSON.parse(options.body);
+    assert.ok(['openai/gpt-oss-120b', 'llama-3.3-70b-versatile'].includes(body.model));
+    return {
+      ok: true,
+      json: async () => ({ choices: [{ message: { content: JSON.stringify(sample) } }] })
+    };
+  };
+  try {
+    const result = await generate('Invoice for Nexus logo 15000', 'invoice', fake);
+    assert.deepEqual(result, sample);
+
+    // Test rejection on 401
+    await assert.rejects(generate('test', 'invoice', async () => ({ ok: false, status: 401 })), /rejected/);
+
+    // Test rejection of reference images with helpful error message
+    await assert.rejects(
+      generate('test', 'invoice', fake, [{ mimeType: 'image/png', data: 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jf1sAAAAASUVORK5CYII=' }]),
+      /text prompts only/
+    );
+  } finally {
+    delete process.env.GROQ_API_KEY;
+  }
+});
+
+test('OpenRouter sends auth header, formats image attachments, and parses response', async () => {
+  process.env.OPENROUTER_API_KEY = 'sk-or-v1-testkey';
+  const sample = { docType: 'quotation', customer: 'OpenCo', description: 'Consulting', amount: 45000, gstBp: 1800, subject: 'Quote', body: 'Quote body', analysis: 'Image has receipt' };
+  const fake = async (url, options) => {
+    assert.equal(url, 'https://openrouter.ai/api/v1/chat/completions');
+    assert.equal(options.headers['Authorization'], 'Bearer sk-or-v1-testkey');
+    const body = JSON.parse(options.body);
+    // User content must be an array when image attachment is included
+    assert.ok(Array.isArray(body.messages[1].content));
+    assert.equal(body.messages[1].content[1].type, 'image_url');
+    return {
+      ok: true,
+      json: async () => ({ choices: [{ message: { content: JSON.stringify(sample) } }] })
+    };
+  };
+  try {
+    const result = await generate(
+      'Quote for OpenCo 45000',
+      'quotation',
+      fake,
+      [{ mimeType: 'image/png', data: 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jf1sAAAAASUVORK5CYII=' }]
+    );
+    assert.deepEqual(result, sample);
+
+    // Test rejection on 401
+    await assert.rejects(generate('test', 'quotation', async () => ({ ok: false, status: 401 })), /rejected/);
+  } finally {
+    delete process.env.OPENROUTER_API_KEY;
+  }
+});
+
+

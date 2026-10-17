@@ -73,8 +73,8 @@ var PageGenerator = (function () {
           '<div class="card-title">' + _iSparkle() + ' Smart Generator</div>' +
           '<div class="card-subtitle">Template-based — type a description and we fill the fields</div>' +
         '</div>' +
-        '<select id="gen-provider" class="form-control" style="width:auto"><option value="offline">Offline templates</option><option value="gemini">Gemini AI (online)</option></select>' +
-        '<span class="form-hint">Gemini sends your prompt to Google. Review generated details before saving.</span>' +
+        '<select id="gen-provider" class="form-control" style="width:auto"><option value="offline">Offline templates</option><option value="gemini">AI Generator (Groq / Online)</option></select>' +
+        '<span class="form-hint">AI sends your prompt to generate document fields. Review generated details before saving.</span>' +
       '</div>' +
 
       '<div class="form-group">' +
@@ -84,7 +84,7 @@ var PageGenerator = (function () {
         '<div class="form-hint">Try: "Invoice for Nexus Digital for logo design Rs 15000" or "Business letter to Sharma &amp; Co regarding project update"</div>' +
       '</div>' +
 
-      '<div class="reference-upload"><label class="form-label" for="gen-images">Upload reference images</label><input id="gen-images" type="file" accept="image/png,image/jpeg,image/webp" multiple/><p class="form-hint">Invoice, quotation or custom document reference · up to 2 images, 5 MB each. Gemini receives your prompt, references and saved business details when you Generate. Your logo is applied locally from Settings.</p><div id="gen-reference-list" class="reference-list"></div><div id="gen-analysis" class="form-hint" role="status"></div></div>' +
+      '<div class="reference-upload"><label class="form-label" for="gen-images">Upload reference images</label><input id="gen-images" type="file" accept="image/png,image/jpeg,image/webp" multiple/><p class="form-hint">Invoice, quotation or custom document reference · up to 2 images, 5 MB each. AI receives your prompt, references and saved business details when you Generate. Your logo is applied locally from Settings.</p><div id="gen-reference-list" class="reference-list"></div><div id="gen-analysis" class="form-hint" role="status"></div></div>' +
       '<div style="display:flex;gap:var(--sp-3);flex-wrap:wrap">' +
         '<button class="btn btn-primary" id="btn-generate">' + _iSparkle() + ' Generate</button>' +
         '<button class="btn btn-secondary" id="btn-clear-prompt">Clear</button>' +
@@ -679,19 +679,29 @@ var PageGenerator = (function () {
         return;
       }
       var parsed      = _parsePrompt(prompt);
-      if(_references.length && document.getElementById('gen-provider').value!=='gemini'){BizToast.show('Choose Gemini AI to analyze images, or remove references for Offline templates.','warning');return;}
+      if(_references.length && document.getElementById('gen-provider').value!=='gemini'){BizToast.show('Choose AI Generator to analyze images, or remove references for Offline templates.','warning');return;}
       if (document.getElementById('gen-provider').value === 'gemini') {
-        if (location.protocol === 'file:') { BizToast.show('Run npm start and open localhost:3000 to use Gemini.', 'warning'); return; }
+        if (location.protocol === 'file:') { BizToast.show('Run npm start and open localhost:3000 to use AI Generator.', 'warning'); return; }
         var generateButton = this;
+        var originalHtml = generateButton.innerHTML;
         generateButton.disabled = true;
+        generateButton.innerHTML = 'Analyzing...';
         try {
-          var response = await fetch('/api/generate', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({prompt:prompt,docType:_state.docType,images:_references.map(function(image){return {mimeType:image.mimeType,data:image.data};}),business:BizBrand.context(BizStorage.getSettings())}), signal:AbortSignal.timeout(50000) });
-          if(!(response.headers.get('content-type')||'').includes('application/json'))throw new Error('Run npm start and open localhost:3000. A static preview cannot run Gemini.');
+          var response = await fetch('/api/generate', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({prompt:prompt,docType:_state.docType,images:_references.map(function(image){return {mimeType:image.mimeType,data:image.data};}),business:BizBrand.context(BizStorage.getSettings())}), signal:AbortSignal.timeout(95000) });
+          if(!(response.headers.get('content-type')||'').includes('application/json'))throw new Error('Run npm start and open localhost:3000. A static preview cannot run AI Generator.');
           var output = await response.json();
-          if (!response.ok) throw new Error(output.error || 'Gemini generation failed.');
+          if (!response.ok) throw new Error(output.error || 'AI generation failed.');
           parsed = output;
-        } catch (error) { BizToast.show(error.message || 'Gemini unavailable. Choose Offline templates to continue.', 'error'); return; }
-        finally { generateButton.disabled = false; }
+        } catch (error) {
+          var msg = (error.name === 'TimeoutError' || /timed?\s*out/i.test(error.message))
+            ? 'AI analysis timed out. The free vision model may be experiencing high traffic — please try again in a moment, or use Offline templates.'
+            : (error.message || 'AI unavailable. Choose Offline templates to continue.');
+          BizToast.show(msg, 'error');
+          return;
+        } finally {
+          generateButton.disabled = false;
+          generateButton.innerHTML = originalHtml;
+        }
       }
       _state.docType  = parsed.docType;
       _state.generated= true;
