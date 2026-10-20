@@ -435,7 +435,11 @@ var PageDocuments = (function () {
       '@page{size:A4 portrait;margin:12mm;}table{width:100%;border-collapse:collapse;}tr{break-inside:avoid;}' +
       '@media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact;}}</style>' +
       '</head><body>' + previewHtml +
-      '<script>window.onload=function(){window.print();};<\/script>' +
+      '<script>window.onload=function(){' +
+      '  var imgs=Array.from(document.images);' +
+      '  Promise.all(imgs.map(function(i){return i.decode?i.decode().catch(function(){}):(i.complete?Promise.resolve():new Promise(function(r){i.onload=i.onerror=r;}));}))' +
+      '  .then(function(){setTimeout(function(){window.print();},200);});' +
+      '};<\/script>' +
       '</body></html>'
     );
     w.document.close();
@@ -447,24 +451,35 @@ var PageDocuments = (function () {
     var body     = (doc.body_json && doc.body_json.body) ? doc.body_json.body : '';
     var subject  = (doc.body_json && doc.body_json.subject) ? doc.body_json.subject : '';
 
-    return '<div style="background:white;padding:32px 36px;font-family:Segoe UI,Arial,sans-serif;font-size:12px;color:#0B163F;min-height:250mm;box-sizing:border-box">' +
-      '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:28px;padding-bottom:20px;border-bottom:3px solid #2563EB">' +
-        '<div>' +
-          BizBrand.header(settings) +
+    return '<div style="background:white;padding:36px 40px;font-family:Segoe UI,Arial,sans-serif;' +
+           'font-size:12px;color:#0B163F;min-height:250mm;box-sizing:border-box;display:flex;flex-direction:column;justify-content:space-between">' +
+      '<div>' +
+        '<div style="display:flex;justify-content:space-between;align-items:flex-start;' +
+             'margin-bottom:24px;padding-bottom:18px;border-bottom:2px solid #2563EB">' +
+          '<div style="max-width:55%">' +
+            BizBrand.header(settings) +
+            (settings.address ? '<div style="font-size:10.5px;color:#64748B;margin-top:2px;line-height:1.4">' + _esc(settings.address) + '</div>' : '') +
+            (settings.gst_number ? '<div style="font-size:10.5px;color:#64748B;margin-top:2px;font-weight:600">GST: ' + _esc(settings.gst_number) + '</div>' : '') +
+          '</div>' +
+          '<div style="text-align:right">' +
+            '<div style="font-size:22px;font-weight:800;color:#2563EB;letter-spacing:-0.5px">' + _cap(doc.type) + '</div>' +
+            '<div style="font-size:13px;font-weight:700;color:#0B163F;margin-top:3px">' + _esc(doc.reference_no) + '</div>' +
+            '<div style="font-size:11px;color:#64748B;margin-top:8px">Date: <strong style="color:#0B163F;font-weight:600">' + _fmtDate(doc.issue_date) + '</strong></div>' +
+          '</div>' +
         '</div>' +
-        '<div style="text-align:right">' +
-          '<div style="font-size:18px;font-weight:800;color:#2563EB">' + _cap(doc.type) + '</div>' +
-          '<div style="font-size:12px;font-weight:600;color:#0B163F;margin-top:4px">' + _esc(doc.reference_no) + '</div>' +
-          '<div style="font-size:10.5px;color:#64748B">' + _fmtDate(doc.issue_date) + '</div>' +
-        '</div>' +
+        (customer ? '<div style="margin-bottom:20px"><div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#64748B;margin-bottom:6px">To</div>' +
+          '<div style="background:#F8FAFC;border-radius:8px;padding:12px 16px;border-left:3px solid #2563EB">' +
+            '<div style="font-weight:700;font-size:13px;color:#0B163F">' + _esc(customer.name) + '</div>' +
+            (customer.company ? '<div style="color:#475569;font-size:11.5px;margin-top:1px">' + _esc(customer.company) + '</div>' : '') +
+          '</div>' +
+        '</div>' : '') +
+        (subject ? '<div style="font-size:13px;font-weight:700;margin-bottom:16px;padding:10px 14px;background:#EFF6FF;border-radius:6px;border-left:3px solid #2563EB">Re: ' + _esc(subject) + '</div>' : '') +
+        (body    ? '<div style="font-size:12px;line-height:1.8;white-space:pre-line;color:#1E293B">' + _esc(body) + '</div>' : '') +
       '</div>' +
-      (customer ? '<div style="margin-bottom:20px"><div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#64748B;margin-bottom:8px">To</div>' +
-        '<div style="font-weight:700">' + _esc(customer.name) + '</div>' +
-        (customer.company ? '<div style="color:#64748B;font-size:11.5px">' + _esc(customer.company) + '</div>' : '') +
-      '</div>' : '') +
-      (subject ? '<div style="font-size:13px;font-weight:700;margin-bottom:16px;padding:10px 14px;background:#EFF6FF;border-radius:6px;border-left:3px solid #2563EB">Re: ' + _esc(subject) + '</div>' : '') +
-      (body    ? '<div style="font-size:12px;line-height:1.8;white-space:pre-line">' + _esc(body) + '</div>' : '') +
-      '<div style="border-top:2px solid #E2E8F0;padding-top:14px;margin-top:32px;text-align:center;font-size:10px;font-weight:700;background:linear-gradient(135deg,#2563EB,#7C3AED);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">BizDocs AI — Smart Documents. Faster Business.</div>' +
+      '<div style="border-top:1px solid #E2E8F0;padding-top:12px;display:flex;justify-content:space-between;align-items:center;margin-top:auto">' +
+        '<div style="font-size:10px;color:#94A3B8">' + (settings.address ? _esc(settings.address.split(',')[0] || '') : 'Thank you for your business!') + '</div>' +
+        '<div style="font-size:10px;font-weight:700;background:linear-gradient(135deg,#2563EB,#7C3AED);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">BizDocs AI — Smart Documents. Faster Business.</div>' +
+      '</div>' +
     '</div>';
   }
 

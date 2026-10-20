@@ -19,6 +19,9 @@ var BizPDF = (function () {
     stage.appendChild(clone); document.body.appendChild(stage);
     try {
       BizToast.show('Preparing your A4 PDF…', 'info');
+      await Promise.all(Array.from(clone.querySelectorAll('img')).map(function(i){
+        return i.decode ? i.decode().catch(function(){}) : (i.complete ? Promise.resolve() : new Promise(function(r){i.onload=i.onerror=r;}));
+      }));
       var canvas = await html2canvas(clone, {scale:2,backgroundColor:'#ffffff',logging:false,windowWidth:1200,scrollX:0,scrollY:0});
       var pdf = new jspdf.jsPDF({orientation:'portrait',unit:'mm',format:'a4',compress:true});
       // Fit each page to A4; use row boundaries to avoid splitting a line item.

@@ -2,7 +2,17 @@
 var BizBrand = (function(){
   function esc(value){return String(value||'').replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
   function validLogo(value){return typeof value==='string' && value.length<=750000 && /^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/]+=*$/.test(value);}
-  function header(s){return (validLogo(s.logo_data_url)?'<img src="'+s.logo_data_url+'" alt="Business logo" style="height:56px;max-width:160px;object-fit:contain;display:block;margin-bottom:10px"/>':'')+'<div style="font-size:22px;font-weight:800;color:#0B163F">'+esc(s.business_name)+'</div><div style="font-size:10px;color:#64748b;margin-top:4px">'+esc([s.email,s.phone].filter(Boolean).join(' · '))+'</div>';}
+  function header(s){
+    var hasLogo = validLogo(s.logo_data_url);
+    var logoImg = hasLogo ? '<img src="'+s.logo_data_url+'" alt="Business logo" style="height:50px;max-width:130px;object-fit:contain;flex-shrink:0"/>' : '';
+    var brandDetails = '<div style="display:flex;flex-direction:column;justify-content:center">' +
+      '<div style="font-size:20px;font-weight:800;color:#0B163F;line-height:1.2">'+esc(s.business_name)+'</div>' +
+      (s.email || s.phone ? '<div style="font-size:10px;color:#64748b;margin-top:3px">'+esc([s.email,s.phone].filter(Boolean).join(' · '))+'</div>' : '') +
+      '</div>';
+    return hasLogo
+      ? '<div style="display:flex;align-items:center;gap:14px;margin-bottom:8px">'+logoImg+brandDetails+'</div>'
+      : '<div style="margin-bottom:8px">'+brandDetails+'</div>';
+  }
   function readImage(file,logo){return new Promise(function(resolve,reject){
     if(!file || !['image/png','image/jpeg','image/webp'].includes(file.type) || file.size>5*1024*1024){reject(new Error('Choose PNG, JPG or WebP up to 5 MB.'));return;}
     var url=URL.createObjectURL(file),img=new Image();

@@ -495,16 +495,33 @@ var PageInvoices = (function () {
     '</div>';
   }
 
+  function _formatGstPct(tax_rate_bp) {
+    var pct = (Number(tax_rate_bp) || 0) / 100;
+    return (pct % 1 === 0 ? pct.toFixed(0) : pct.toFixed(1)) + '%';
+  }
+
+  function _gstOptionsHtml(selectedBp) {
+    selectedBp = parseInt(selectedBp);
+    if (isNaN(selectedBp)) selectedBp = 1800;
+    var standard = [0, 500, 800, 1200, 1800, 2800];
+    var list = standard.slice();
+    if (!list.includes(selectedBp) && selectedBp >= 0 && selectedBp <= 10000) {
+      list.push(selectedBp);
+      list.sort(function (a, b) { return a - b; });
+    }
+    var html = list.map(function (bp) {
+      return '<option value="' + bp + '"' + (selectedBp === bp ? ' selected' : '') + '>' + _formatGstPct(bp) + '</option>';
+    }).join('');
+    return html + '<option value="custom">Custom %...</option>';
+  }
+
   /* ---- Item row (same structure as quotations) ---- */
   function _itemRowHtml(item, idx) {
     var discOptions = ['percent','fixed'].map(function (t) {
       return '<option value="' + t + '"' + (item.discount_type===t?' selected':'') + '>' +
         (t==='percent'?'% Disc':'₹ Disc') + '</option>';
     }).join('');
-    var gstOptions = [0,500,1200,1800,2800].map(function (bp) {
-      return '<option value="' + bp + '"' + (item.tax_rate_bp===bp?' selected':'') + '>' +
-        (bp/100) + '%</option>';
-    }).join('');
+    var gstOptions = _gstOptionsHtml(item.tax_rate_bp);
 
     return '<div class="item-row" data-idx="' + idx + '">' +
       '<div class="item-row__main">' +
@@ -592,25 +609,30 @@ var PageInvoices = (function () {
         '<td style="padding:8px 6px;font-size:11.5px;text-align:center">' + qty + '</td>' +
         '<td style="padding:8px 6px;font-size:11.5px;text-align:right">' + BizMoney.format(item.unit_price_p||0,sym) + '</td>' +
         '<td style="padding:8px 6px;font-size:11.5px;text-align:center">' + discStr + '</td>' +
-        '<td style="padding:8px 6px;font-size:11.5px;text-align:center">' + ((item.tax_rate_bp||0)/100).toFixed(0) + '%</td>' +
+        '<td style="padding:8px 6px;font-size:11.5px;text-align:center">' + _formatGstPct(item.tax_rate_bp) + '</td>' +
         '<td style="padding:8px 6px;font-size:11.5px;text-align:right;font-weight:600">' + BizMoney.format(line.line_total_p,sym) + '</td>' +
       '</tr>';
     }).join('');
 
-    return '<div style="background:white;padding:32px 36px;font-family:Segoe UI,Arial,sans-serif;font-size:12px;color:#0B163F;min-height:250mm;box-sizing:border-box">' +
+    return '<div style="background:white;padding:36px 40px;font-family:Segoe UI,Arial,sans-serif;' +
+           'font-size:12px;color:#0B163F;min-height:250mm;box-sizing:border-box;display:flex;flex-direction:column;justify-content:space-between">' +
+      '<div>' +
 
       /* Header */
-      '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:28px;padding-bottom:20px;border-bottom:3px solid #2563EB">' +
-        '<div>' +
+      '<div style="display:flex;justify-content:space-between;align-items:flex-start;' +
+           'margin-bottom:24px;padding-bottom:18px;border-bottom:2px solid #2563EB">' +
+        '<div style="max-width:55%">' +
           BizBrand.header(s) +
-          (s.address ? '<div style="font-size:10.5px;color:#94A3B8;margin-top:2px">' + _esc(s.address) + '</div>' : '') +
-          (s.gst_number ? '<div style="font-size:10.5px;color:#94A3B8">GST: ' + _esc(s.gst_number) + '</div>' : '') +
+          (s.address ? '<div style="font-size:10.5px;color:#64748B;margin-top:2px;line-height:1.4">' + _esc(s.address) + '</div>' : '') +
+          (s.gst_number ? '<div style="font-size:10.5px;color:#64748B;margin-top:2px;font-weight:600">GST: ' + _esc(s.gst_number) + '</div>' : '') +
         '</div>' +
         '<div style="text-align:right">' +
-          '<div style="font-size:20px;font-weight:800;color:#2563EB;letter-spacing:-0.5px">INVOICE</div>' +
-          '<div style="font-size:13px;font-weight:700;color:#0B163F;margin-top:4px">' + _esc(refNo) + '</div>' +
-          '<div style="font-size:10.5px;color:#64748B;margin-top:4px">Date: ' + _fmtDate(issueDate) + '</div>' +
-          (dueDate ? '<div style="font-size:10.5px;color:#64748B">Due: ' + _fmtDate(dueDate) + '</div>' : '') +
+          '<div style="font-size:22px;font-weight:800;color:#2563EB;letter-spacing:-0.5px">INVOICE</div>' +
+          '<div style="font-size:13px;font-weight:700;color:#0B163F;margin-top:3px">' + _esc(refNo) + '</div>' +
+          '<div style="margin-top:8px;font-size:11px;color:#64748B;line-height:1.6">' +
+            '<div><span style="color:#94A3B8">Date:</span> <strong style="color:#0B163F;font-weight:600">' + _fmtDate(issueDate) + '</strong></div>' +
+            (dueDate ? '<div><span style="color:#94A3B8">Due:</span> <strong style="color:#0B163F;font-weight:600">' + _fmtDate(dueDate) + '</strong></div>' : '') +
+          '</div>' +
           '<div style="display:inline-block;margin-top:8px;padding:4px 12px;border-radius:20px;' +
                'background:' + statusColour + ';color:white;font-size:10px;font-weight:700;letter-spacing:1px">' +
             statusLabel +
@@ -619,15 +641,15 @@ var PageInvoices = (function () {
       '</div>' +
 
       /* Bill to */
-      '<div style="margin-bottom:24px">' +
-        '<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#64748B;margin-bottom:8px">Bill To</div>' +
-        '<div style="background:#F8FAFC;border-radius:8px;padding:14px 16px;border-left:3px solid #2563EB">' +
+      '<div style="margin-bottom:22px">' +
+        '<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#64748B;margin-bottom:6px">Bill To</div>' +
+        '<div style="background:#F8FAFC;border-radius:8px;padding:12px 16px;border-left:3px solid #2563EB">' +
           (customer
-            ? '<div style="font-weight:700;font-size:13px">' + _esc(customer.name) + '</div>' +
-              (customer.company ? '<div style="color:#64748B;font-size:11.5px">' + _esc(customer.company) + '</div>' : '') +
-              (customer.address ? '<div style="color:#94A3B8;font-size:11px;margin-top:2px">' + _esc(customer.address) + '</div>' : '') +
-              (customer.email   ? '<div style="color:#64748B;font-size:11px">' + _esc(customer.email) + '</div>' : '') +
-              (customer.gst_number ? '<div style="color:#94A3B8;font-size:10.5px">GST: ' + _esc(customer.gst_number) + '</div>' : '')
+            ? '<div style="font-weight:700;font-size:13px;color:#0B163F">' + _esc(customer.name) + '</div>' +
+              (customer.company ? '<div style="color:#475569;font-size:11.5px;margin-top:1px">' + _esc(customer.company) + '</div>' : '') +
+              (customer.address ? '<div style="color:#64748B;font-size:11px;margin-top:2px;line-height:1.4">' + _esc(customer.address) + '</div>' : '') +
+              (customer.email   ? '<div style="color:#64748B;font-size:11px;margin-top:2px">' + _esc(customer.email) + '</div>' : '') +
+              (customer.gst_number ? '<div style="color:#64748B;font-size:10.5px;margin-top:1px;font-weight:600">GST: ' + _esc(customer.gst_number) + '</div>' : '')
             : '<div style="color:#94A3B8;font-size:12px">No customer selected</div>') +
         '</div>' +
       '</div>' +
@@ -635,32 +657,33 @@ var PageInvoices = (function () {
       /* Items */
       '<table style="width:100%;border-collapse:collapse;margin-bottom:20px">' +
         '<thead><tr style="background:linear-gradient(135deg,#2563EB,#7C3AED)">' +
-          '<th style="padding:10px 6px;font-size:10.5px;font-weight:700;color:white;text-align:left">Description</th>' +
-          '<th style="padding:10px 6px;font-size:10.5px;font-weight:700;color:white;text-align:center;width:50px">Qty</th>' +
-          '<th style="padding:10px 6px;font-size:10.5px;font-weight:700;color:white;text-align:right;width:90px">Rate</th>' +
-          '<th style="padding:10px 6px;font-size:10.5px;font-weight:700;color:white;text-align:center;width:60px">Disc</th>' +
-          '<th style="padding:10px 6px;font-size:10.5px;font-weight:700;color:white;text-align:center;width:50px">GST</th>' +
-          '<th style="padding:10px 6px;font-size:10.5px;font-weight:700;color:white;text-align:right;width:90px">Amount</th>' +
+          '<th style="padding:10px 12px;font-size:11px;font-weight:700;color:white;text-align:left">Description</th>' +
+          '<th style="padding:10px 8px;font-size:11px;font-weight:700;color:white;text-align:center;width:55px">Qty</th>' +
+          '<th style="padding:10px 8px;font-size:11px;font-weight:700;color:white;text-align:right;width:100px">Rate</th>' +
+          '<th style="padding:10px 8px;font-size:11px;font-weight:700;color:white;text-align:center;width:65px">Disc</th>' +
+          '<th style="padding:10px 8px;font-size:11px;font-weight:700;color:white;text-align:center;width:60px">GST</th>' +
+          '<th style="padding:10px 12px;font-size:11px;font-weight:700;color:white;text-align:right;width:110px">Amount</th>' +
         '</tr></thead>' +
         '<tbody>' + (itemRows||'<tr><td colspan="6" style="padding:16px;text-align:center;color:#94A3B8">No items</td></tr>') + '</tbody>' +
       '</table>' +
 
       /* Totals */
-      '<div style="display:flex;justify-content:flex-end;margin-bottom:24px">' +
-        '<div style="width:240px">' + _previewTotals(calc,sym) + '</div>' +
+      '<div style="display:flex;justify-content:flex-end;margin-bottom:20px">' +
+        '<div style="width:280px">' + _previewTotals(calc,sym) + '</div>' +
       '</div>' +
 
       /* Notes/Terms */
       (notes||terms
-        ? '<div style="border-top:1px solid #E2E8F0;padding-top:16px;margin-bottom:16px">' +
-            (notes?'<div style="margin-bottom:10px"><div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#64748B;margin-bottom:4px">Notes</div><div style="font-size:11px;color:#475569;line-height:1.6">'+_esc(notes)+'</div></div>':'') +
-            (terms?'<div><div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#64748B;margin-bottom:4px">Terms</div><div style="font-size:11px;color:#475569;line-height:1.6">'+_esc(terms)+'</div></div>':'') +
+        ? '<div style="border-top:1px solid #E2E8F0;padding-top:14px;margin-bottom:14px">' +
+            (notes?'<div style="margin-bottom:8px"><div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#64748B;margin-bottom:3px">Notes</div><div style="font-size:11px;color:#475569;line-height:1.5">'+_esc(notes)+'</div></div>':'') +
+            (terms?'<div><div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#64748B;margin-bottom:3px">Terms</div><div style="font-size:11px;color:#475569;line-height:1.5">'+_esc(terms)+'</div></div>':'') +
           '</div>'
         : '') +
+      '</div>' +
 
       /* Footer */
-      '<div style="border-top:2px solid #E2E8F0;padding-top:14px;display:flex;justify-content:space-between;align-items:center">' +
-        '<div style="font-size:10px;color:#94A3B8">' + (s.email?_esc(s.email)+'  ':'') + (s.phone?'| '+_esc(s.phone):'') + '</div>' +
+      '<div style="border-top:1px solid #E2E8F0;padding-top:12px;display:flex;justify-content:space-between;align-items:center;margin-top:auto">' +
+        '<div style="font-size:10px;color:#94A3B8">' + (s.address ? _esc(s.address.split(',')[0] || '') : 'Thank you for your business!') + '</div>' +
         '<div style="font-size:10px;font-weight:700;background:linear-gradient(135deg,#2563EB,#7C3AED);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">BizDocs AI — Smart Documents. Faster Business.</div>' +
       '</div>' +
 
@@ -673,11 +696,14 @@ var PageInvoices = (function () {
             ['GST',BizMoney.format(calc.total_tax_p,sym),false],
             ['Grand Total',BizMoney.format(calc.grand_total_p,sym),true]
     ].map(function(r){
-      return '<div style="display:flex;justify-content:space-between;padding:'+(r[2]?'10px 12px':'6px 12px')+';' +
-        'background:'+(r[2]?'linear-gradient(135deg,#2563EB,#7C3AED)':'transparent')+';' +
-        'border-radius:'+(r[2]?'6px':'0')+';margin-top:'+(r[2]?'6px':'0')+'">' +
-        '<span style="font-size:'+(r[2]?'12px':'11px')+';font-weight:'+(r[2]?'700':'500')+';color:'+(r[2]?'white':'#64748B')+'">'+r[0]+'</span>' +
-        '<span style="font-size:'+(r[2]?'13px':'11px')+';font-weight:'+(r[2]?'800':'600')+';color:'+(r[2]?'white':'#0B163F')+'">'+r[1]+'</span>' +
+      var isBold = r[2];
+      return '<div style="display:flex;justify-content:space-between;align-items:center;' +
+        'padding:' + (isBold ? '10px 12px' : '5px 12px') + ';' +
+        'background:' + (isBold ? 'linear-gradient(135deg,#2563EB,#7C3AED)' : 'transparent') + ';' +
+        'border-radius:' + (isBold ? '6px' : '0') + ';' +
+        (isBold ? 'margin-top:6px;' : 'border-bottom:1px solid #F1F5F9;') + '">' +
+        '<span style="font-size:' + (isBold ? '12px' : '11px') + ';font-weight:' + (isBold ? '700' : '500') + ';color:' + (isBold ? 'white' : '#64748B') + '">' + r[0] + '</span>' +
+        '<span style="font-size:' + (isBold ? '14px' : '11.5px') + ';font-weight:' + (isBold ? '800' : '600') + ';color:' + (isBold ? 'white' : '#0B163F') + '">' + r[1] + '</span>' +
       '</div>';
     }).join('');
   }
@@ -723,8 +749,31 @@ var PageInvoices = (function () {
         _recalcAll(settings);
       };
     });
-    document.querySelectorAll('.item-desc,.item-qty,.item-price,.item-disc-type,.item-disc-val,.item-gst').forEach(function (inp) {
+    document.querySelectorAll('.item-desc,.item-qty,.item-price,.item-disc-type,.item-disc-val').forEach(function (inp) {
       inp.oninput = inp.onchange = function () { _recalcAll(settings); };
+    });
+    document.querySelectorAll('.item-gst').forEach(function (gstSel) {
+      gstSel.oninput = function () { _recalcAll(settings); };
+      gstSel.onchange = function () {
+        if (this.value === 'custom') {
+          var input = window.prompt('Enter custom Tax/GST percentage (0 to 100):', '8');
+          var num = parseFloat(input);
+          if (!isNaN(num) && num >= 0 && num <= 100) {
+            var bp = Math.round(num * 100);
+            var opt = this.querySelector('option[value="' + bp + '"]');
+            if (!opt) {
+              opt = document.createElement('option');
+              opt.value = bp;
+              opt.textContent = _formatGstPct(bp);
+              this.insertBefore(opt, this.lastElementChild);
+            }
+            this.value = bp;
+          } else {
+            this.value = String(settings.default_gst_bp || 1800);
+          }
+        }
+        _recalcAll(settings);
+      };
     });
     ['i-customer','i-ref','i-date','i-due','i-status','i-notes','i-terms'].forEach(function (id) {
       var el = document.getElementById(id);
@@ -830,7 +879,11 @@ var PageInvoices = (function () {
       '<style>body{margin:0;padding:0;font-family:Inter,"Segoe UI",sans-serif;}@page{size:A4 portrait;margin:12mm;}table{width:100%;border-collapse:collapse;}tr{break-inside:avoid;}' +
       '@media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact;}}</style></head><body>' +
       _buildPreview(doc, customers, settings, doc.items||[]) +
-      '<script>window.onload=function(){window.print();};<\/script></body></html>');
+      '<script>window.onload=function(){' +
+      '  var imgs=Array.from(document.images);' +
+      '  Promise.all(imgs.map(function(i){return i.decode?i.decode().catch(function(){}):(i.complete?Promise.resolve():new Promise(function(r){i.onload=i.onerror=r;}));}))' +
+      '  .then(function(){setTimeout(function(){window.print();},200);});' +
+      '};<\/script></body></html>');
     w.document.close();
   }
 
@@ -853,7 +906,11 @@ var PageInvoices = (function () {
       '<style>body{margin:0;padding:0;font-family:Inter,"Segoe UI",sans-serif;}@page{size:A4 portrait;margin:12mm;}table{width:100%;border-collapse:collapse;}tr{break-inside:avoid;}' +
       '@media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact;}}</style></head><body>' +
       _buildPreview(fakeDoc, customers, settings, items) +
-      '<script>window.onload=function(){window.print();};<\/script></body></html>');
+      '<script>window.onload=function(){' +
+      '  var imgs=Array.from(document.images);' +
+      '  Promise.all(imgs.map(function(i){return i.decode?i.decode().catch(function(){}):(i.complete?Promise.resolve():new Promise(function(r){i.onload=i.onerror=r;}));}))' +
+      '  .then(function(){setTimeout(function(){window.print();},200);});' +
+      '};<\/script></body></html>');
     w.document.close();
   }
 

@@ -80,9 +80,11 @@ var PageSettings = (function () {
             '<select id="s-gst-pct" class="form-control">' +
               _gstOption(0,    s.default_gst_bp) +
               _gstOption(500,  s.default_gst_bp) +
+              _gstOption(800,  s.default_gst_bp) +
               _gstOption(1200, s.default_gst_bp) +
               _gstOption(1800, s.default_gst_bp) +
               _gstOption(2800, s.default_gst_bp) +
+              (![0, 500, 800, 1200, 1800, 2800].includes(s.default_gst_bp) ? _gstOption(s.default_gst_bp, s.default_gst_bp) : '') +
             '</select>' +
           '</div>' +
           '<div class="form-group">' +
@@ -161,15 +163,41 @@ var PageSettings = (function () {
 
   function _gstOption(bp, currentBp) {
     var sel = currentBp === bp ? ' selected' : '';
-    return '<option value="' + bp + '"' + sel + '>' + (bp/100).toFixed(0) + '%</option>';
+    var pct = (Number(bp) || 0) / 100;
+    var label = (pct % 1 === 0 ? pct.toFixed(0) : pct.toFixed(1)) + '%';
+    return '<option value="' + bp + '"' + sel + '>' + label + '</option>';
   }
 
   /* ============================================================
      EVENTS
      ============================================================ */
   function _bindEvents() {
-    document.getElementById('s-logo').onchange=async function(){var save=document.getElementById('s-save');save.disabled=true;try{var image=await BizBrand.readImage(this.files[0],true);_logo=image.dataUrl;document.getElementById('s-logo-preview').innerHTML='<img src="'+_logo+'" alt="Business logo"/>';BizToast.show('Logo ready. Save Settings to apply.','success');}catch(error){BizToast.show(error.message,'warning');}finally{save.disabled=false;this.value='';}};
-    document.getElementById('s-logo-remove').onclick=function(){_logo=null;document.getElementById('s-logo-preview').textContent='Your logo';};
+    document.getElementById('s-logo').onchange = async function () {
+      var save = document.getElementById('s-save');
+      if (save) save.disabled = true;
+      try {
+        var image = await BizBrand.readImage(this.files[0], true);
+        _logo = image.dataUrl;
+        document.getElementById('s-logo-preview').innerHTML = '<img src="' + _logo + '" alt="Business logo"/>';
+        var current = BizStorage.getSettings();
+        current.logo_data_url = _logo;
+        BizStorage.saveSettings(current);
+        BizToast.show('Company logo uploaded and saved to documents!', 'success');
+      } catch (error) {
+        BizToast.show(error.message, 'warning');
+      } finally {
+        if (save) save.disabled = false;
+        this.value = '';
+      }
+    };
+    document.getElementById('s-logo-remove').onclick = function () {
+      _logo = null;
+      document.getElementById('s-logo-preview').textContent = 'Your logo';
+      var current = BizStorage.getSettings();
+      current.logo_data_url = null;
+      BizStorage.saveSettings(current);
+      BizToast.show('Company logo removed and saved.', 'info');
+    };
     /* Save */
     document.getElementById('s-save').addEventListener('click', _save);
 
